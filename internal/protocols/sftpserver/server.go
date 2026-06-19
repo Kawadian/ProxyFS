@@ -70,9 +70,12 @@ func New(cfg Config, authSvc *auth.Service, fs *vfs.VirtualFS, checker *rbac.Eng
 	}
 	s.sshSrv = &ssh.Server{
 		Addr:             cfg.Addr,
-		Handler:          s.sessionHandler,
+		Handler:          s.rejectShellHandler,
 		PasswordHandler:  s.passwordHandler,
 		PublicKeyHandler: s.publicKeyHandler,
+		SubsystemHandlers: map[string]ssh.SubsystemHandler{
+			"sftp": s.sessionHandler,
+		},
 	}
 	signer, err := gossh.ParsePrivateKey(cfg.HostKeyPEM)
 	if err != nil {
@@ -121,14 +124,15 @@ func (s *Server) IsRunning() bool {
 	return s.running
 }
 
+func (s *Server) rejectShellHandler(sess ssh.Session) {
+	_, _ = io.WriteString(sess.Stderr(), "only sftp subsystem supported\n")
+	_ = sess.Exit(1)
+}
+
 func (s *Server) sessionHandler(sess ssh.Session) {
-	user := sess.Context().Value(ctxUserKey{}).(*auth.User)
-	if user == nil {
-		_ = sess.Exit(1)
-		return
-	}
-	if !strings.EqualFold(sess.Subsystem(), "sftp") {
-		_, _ = io.WriteString(sess.Stderr(), "only sftp subsystem supported\n")
+	userVal := sess.Context().Value(ctxUserKey{})
+	user, ok := userVal.(*auth.User)
+	if !ok || user == nil {
 		_ = sess.Exit(1)
 		return
 	}

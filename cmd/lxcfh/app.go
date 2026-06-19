@@ -92,7 +92,7 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 	}
 
 	lockStore := webdav.NewLockStore(st.DB())
-	webdavSrv := webdav.New(webdav.Config{Prefix: "/dav/", AllowGuest: false}, authSvc, vfsFS, rbacEngine, lockStore, logger)
+	webdavSrv := webdav.New(webdav.Config{Prefix: webdav.MountPath, AllowGuest: false}, authSvc, vfsFS, rbacEngine, lockStore, logger)
 
 	protocolMgr := runtime.NewProtocolManager(cfg, st, sftpSrv, webdavSrv, vfsFS, authSvc, logger)
 	svc.OnSettingsChanged = func(ctx context.Context, settings models.Settings) error {
@@ -134,7 +134,9 @@ func (a *runtimeApp) handler() http.Handler {
 			apiHandler.ServeHTTP(w, r)
 		case strings.HasPrefix(r.URL.Path, "/api/"):
 			apiHandler.ServeHTTP(w, r)
-		case strings.HasPrefix(r.URL.Path, "/dav/"):
+		case strings.HasPrefix(r.URL.Path, webdav.LegacyMountPath):
+			davHandler.ServeHTTP(w, r)
+		case webdav.IsWebDAVRequest(r):
 			davHandler.ServeHTTP(w, r)
 		default:
 			static.ServeHTTP(w, r)

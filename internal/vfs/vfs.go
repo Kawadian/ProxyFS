@@ -180,6 +180,15 @@ func (v *VirtualFS) Stat(ctx context.Context, virtualPath string) (FileInfo, err
 
 	mount, nodePath, err := v.resolve(clean)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) && clean == "/" {
+			return FileInfo{
+				Name:    "/",
+				Path:    "/",
+				Mode:    os.ModeDir | 0o755,
+				ModTime: time.Now(),
+				IsDir:   true,
+			}, nil
+		}
 		return FileInfo{}, err
 	}
 	info, err := mount.Backend.Stat(ctx, nodePath)
