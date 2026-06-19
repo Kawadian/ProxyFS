@@ -1,0 +1,32 @@
+# Binaries & build artifacts
+/bin/
+/dist/
+/cmd/lxcfh/static/
+/web/dist/
+/coverage/
+*.out
+*.test
+.sbom
+
+# Dependencies
+/node_modules/
+/web/node_modules/
+/frontend/node_modules/
+
+# Environment
+.env
+.env.local
+compose.override.yaml
+
+# Secrets (never commit real keys)
+/secrets/**/master.key
+!/secrets/**/master.key.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Docker local data
+/docker-data/

@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_files_path;
+DROP TABLE IF EXISTS files;

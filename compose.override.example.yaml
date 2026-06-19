@@ -1,0 +1,31 @@
+# Copy to compose.override.yaml for local development overrides.
+# compose.override.yaml is gitignored and merged automatically by Docker Compose.
+
+services:
+  hub:
+    build:
+      target: runtime
+    environment:
+      SMB_ENABLED: "true"
+      LXCFH_BIND_PORT: "8080"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./secrets/dev/master.key:/run/secrets/master.key:ro
+    # Mount source for live iteration (optional — rebuild image for Go changes)
+    # volumes:
+    #   - ./migrations:/app/migrations:ro
+
+  samba:
+    profiles: []
+    environment:
+      SMB_PASSWORD: dev-samba-password
+    ports:
+      - "445:445"
+      - "139:139"
+
+  test-node:
+    profiles:
+      - test
+    ports:
+      - "2222:2222"
