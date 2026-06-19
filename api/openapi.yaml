@@ -1019,7 +1019,8 @@ paths:
   /config/export:
     get:
       tags: [Config]
-      summary: Export configuration as YAML
+      summary: Export node definitions as YAML
+      description: Exports node definitions as human-editable YAML (no UUIDs or runtime fields). Users, keys, credentials, and settings are not included.
       operationId: configExport
       security:
         - sessionAuth: []
@@ -1033,7 +1034,8 @@ paths:
   /config/validate:
     post:
       tags: [Config]
-      summary: Validate configuration YAML
+      summary: Validate node definitions YAML
+      description: Validates a YAML file containing node definitions only.
       operationId: configValidate
       security:
         - sessionAuth: []
@@ -1054,7 +1056,8 @@ paths:
   /config/preview:
     post:
       tags: [Config]
-      summary: Preview configuration changes
+      summary: Preview node definition changes
+      description: Shows which nodes would be added, updated, or removed.
       operationId: configPreview
       security:
         - sessionAuth: []
@@ -1075,7 +1078,8 @@ paths:
   /config/apply:
     post:
       tags: [Config]
-      summary: Apply configuration (full replacement)
+      summary: Apply node definitions
+      description: Replaces all nodes from a YAML file. Users, SSH keys, credentials, and settings are not changed.
       operationId: configApply
       security:
         - sessionAuth: []

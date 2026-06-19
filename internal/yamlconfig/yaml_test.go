@@ -49,6 +49,7 @@ func TestBuildDocumentOmitsAutoFields(t *testing.T) {
 		"node-id", "cred-id", "key-id", "user-id",
 		"created_at", "updated_at", "createdat", "updatedat",
 		"fingerprint", "host_key", "credential_id", "key_id",
+		"users:", "keys:", "settings:", "credentials:",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("unexpected field %q in export:\n%s", forbidden, text)
@@ -59,25 +60,5 @@ func TestBuildDocumentOmitsAutoFields(t *testing.T) {
 	}
 	if strings.Contains(text, "  enabled:") {
 		t.Fatalf("enabled should be omitted when true:\n%s", text)
-	}
-}
-
-func TestToConfigDocumentGeneratesIDs(t *testing.T) {
-	cfg, err := yamlconfig.ToConfigDocument(models.ConfigYAMLDocument{
-		Version: 1,
-		Nodes: []models.NodeSpec{{
-			Name: "server-a", Host: "10.0.0.1", Port: 2222, Username: "root",
-		}},
-		Credentials: []models.CredentialSpec{{Name: "main-cred", Type: "password"}},
-		Users:       []models.UserSpec{{Username: "admin", Role: models.RoleAdmin}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Nodes[0].ID == "" || cfg.Credentials[0].ID == "" || cfg.Users[0].ID == "" {
-		t.Fatal("expected generated IDs")
-	}
-	if cfg.Nodes[0].HostKeyStatus != "unknown" {
-		t.Fatalf("host key status = %q", cfg.Nodes[0].HostKeyStatus)
 	}
 }

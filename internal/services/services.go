@@ -864,7 +864,11 @@ func (s *Services) Restore(ctx context.Context, data []byte) error {
 	if !result.Valid {
 		return fmt.Errorf("%w: %v", store.ErrConflict, result.Errors)
 	}
-	return s.restoreNodesBackup(ctx, doc.Nodes)
+	return s.RestoreNodes(ctx, doc.Nodes)
+}
+
+func (s *Services) RestoreNodes(ctx context.Context, specs []models.NodeSpec) error {
+	return s.restoreNodesBackup(ctx, specs)
 }
 
 func (s *Services) restoreNodesBackup(ctx context.Context, specs []models.NodeSpec) error {

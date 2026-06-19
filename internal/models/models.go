@@ -200,15 +200,8 @@ type ConfigDocument struct {
 	Extra       map[string]interface{} `json:"extra,omitempty"`
 }
 
-// ConfigYAMLDocument is a human-editable YAML export (no IDs, timestamps, or runtime state).
-type ConfigYAMLDocument struct {
-	Version     int              `yaml:"version"`
-	Settings    *Settings        `yaml:"settings,omitempty"`
-	Nodes       []NodeSpec       `yaml:"nodes,omitempty"`
-	Credentials []CredentialSpec `yaml:"credentials,omitempty"`
-	Keys        []KeySpec        `yaml:"keys,omitempty"`
-	Users       []UserSpec       `yaml:"users,omitempty"`
-}
+// ConfigYAMLDocument is a human-editable YAML export containing only node definitions.
+type ConfigYAMLDocument = NodesBackupDocument
 
 // NodesBackupDocument is a human-editable YAML backup containing only node definitions.
 type NodesBackupDocument struct {
@@ -226,29 +219,6 @@ type NodeSpec struct {
 	Key        string            `yaml:"key,omitempty"`
 	Labels     map[string]string `yaml:"labels,omitempty"`
 	Enabled    *bool             `yaml:"enabled,omitempty"`
-}
-
-// CredentialSpec holds manually configurable credential fields (no IDs or secrets).
-type CredentialSpec struct {
-	Name     string `yaml:"name"`
-	Type     string `yaml:"type"`
-	Username string `yaml:"username,omitempty"`
-}
-
-// KeySpec holds manually configurable SSH key fields (no IDs or fingerprints).
-type KeySpec struct {
-	Name      string `yaml:"name"`
-	PublicKey string `yaml:"public_key"`
-	Comment   string `yaml:"comment,omitempty"`
-}
-
-// UserSpec holds manually configurable user fields (no IDs, passwords, or timestamps).
-type UserSpec struct {
-	Username    string `yaml:"username"`
-	DisplayName string `yaml:"display_name,omitempty"`
-	Email       string `yaml:"email,omitempty"`
-	Role        Role   `yaml:"role"`
-	Enabled     *bool  `yaml:"enabled,omitempty"`
 }
 
 type PingResult struct {
