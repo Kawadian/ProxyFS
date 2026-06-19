@@ -41,6 +41,7 @@ type Services struct {
 	VFSManager        *hub.VFSManager
 	MasterKey         []byte
 	OnNodesChanged    func(ctx context.Context)
+	OnUsersChanged    func(ctx context.Context) error
 	OnSettingsChanged func(ctx context.Context, settings models.Settings) error
 }
 
@@ -232,7 +233,13 @@ func (s *Services) requestSambaSync(ctx context.Context, username, password stri
 	if username != "" && password != "" {
 		_ = s.Store.SetSambaPendingPassword(ctx, username, password)
 	}
-	return s.Store.BumpSambaSyncNonce(ctx)
+	if err := s.Store.BumpSambaSyncNonce(ctx); err != nil {
+		return err
+	}
+	if s.OnUsersChanged != nil {
+		return s.OnUsersChanged(ctx)
+	}
+	return nil
 }
 
 func (s *Services) ListUserSSHKeys(ctx context.Context, userID string) ([]models.UserSSHKey, error) {

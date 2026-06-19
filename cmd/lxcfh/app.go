@@ -95,6 +95,7 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 	webdavSrv := webdav.New(webdav.Config{Prefix: "/dav/", AllowGuest: false}, authSvc, vfsFS, rbacEngine, lockStore, logger)
 
 	protocolMgr := runtime.NewProtocolManager(cfg, st, sftpSrv, webdavSrv, vfsFS, authSvc, logger)
+	svc.OnUsersChanged = protocolMgr.SyncSMBUsers
 	svc.OnSettingsChanged = func(ctx context.Context, settings models.Settings) error {
 		return protocolMgr.Apply(ctx, settings)
 	}

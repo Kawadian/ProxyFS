@@ -69,6 +69,7 @@ func (r *Root) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut)
 		return syscall.ENOENT
 	}
 	r.fillAttrOut(out, info)
+	out.Ino = 1
 	return 0
 }
 
@@ -171,8 +172,10 @@ func fillAttr(out *fuse.Attr, info vfs.FileInfo, uidMap UIDMapper) {
 	mode := uint32(info.Mode.Perm())
 	if info.IsDir {
 		mode |= fuse.S_IFDIR
+		out.Nlink = 2
 	} else {
 		mode |= fuse.S_IFREG
+		out.Nlink = 1
 	}
 	out.Mode = mode
 	out.Size = uint64(info.Size)

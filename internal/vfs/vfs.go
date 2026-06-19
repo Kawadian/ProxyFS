@@ -95,6 +95,8 @@ func (v *VirtualFS) AddMount(m Mount) error {
 		}
 	}
 	v.mounts = append(v.mounts, m)
+	delete(v.dirCache, "/")
+	delete(v.statCache, "/")
 	return nil
 }
 
@@ -128,6 +130,8 @@ func (v *VirtualFS) RemoveMount(prefix string) error {
 			v.mounts = append(v.mounts[:i], v.mounts[i+1:]...)
 			delete(v.dirCache, prefix)
 			delete(v.statCache, prefix)
+			delete(v.dirCache, "/")
+			delete(v.statCache, "/")
 			return nil
 		}
 	}
@@ -170,6 +174,15 @@ func (v *VirtualFS) Stat(ctx context.Context, virtualPath string) (FileInfo, err
 	clean, err := ResolveVirtualPath(virtualPath)
 	if err != nil {
 		return FileInfo{}, err
+	}
+	if clean == "/" {
+		return FileInfo{
+			Name:    "/",
+			Path:    "/",
+			Mode:    os.ModeDir | 0o755,
+			ModTime: time.Now(),
+			IsDir:   true,
+		}, nil
 	}
 	v.mu.RLock()
 	if cached, ok := v.statCache[clean]; ok && time.Now().Before(cached.expires) {

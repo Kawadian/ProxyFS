@@ -193,11 +193,6 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 		m.fuseUp = true
 	}
 
-	syncer := samba.NewSyncer(m.store.DB(), samba.Config{}, m.logger)
-	if _, err := syncer.SyncAll(ctx, nil); err != nil {
-		m.logger.Warn("samba user sync on start", "error", err)
-	}
-
 	if err := m.ensureSMBConfig(mountPoint); err != nil {
 		return err
 	}
@@ -207,6 +202,13 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 	}
 	if err := os.MkdirAll("/var/log/samba", 0o755); err != nil {
 		return err
+	}
+	if err := os.MkdirAll(filepath.Join(m.cfg.DataDir, "samba"), 0o700); err != nil {
+		return err
+	}
+
+	if err := m.syncSMBUsersLocked(ctx); err != nil {
+		m.logger.Warn("samba user sync on start", "error", err)
 	}
 
 	m.nmbdCmd = exec.CommandContext(ctx, "nmbd", "--foreground", "--no-process-group")
@@ -229,6 +231,22 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 
 	m.logger.Info("smb started", "share", mountPoint)
 	return nil
+}
+
+// SyncSMBUsers applies Hub user changes immediately while SMB is running.
+func (m *ProtocolManager) SyncSMBUsers(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.smbRunningLocked() {
+		return nil
+	}
+	return m.syncSMBUsersLocked(ctx)
+}
+
+func (m *ProtocolManager) syncSMBUsersLocked(ctx context.Context) error {
+	syncer := samba.NewSyncer(m.store.DB(), samba.Config{}, m.logger)
+	_, err := syncer.SyncAll(ctx, nil)
+	return err
 }
 
 func (m *ProtocolManager) stopSMBLocked() {
@@ -287,7 +305,7 @@ func (m *ProtocolManager) ensureSMBConfig(sharePath string) error {
    server string = LXC File Hub
    security = user
    map to guest = Bad User
-   passdb backend = tdbsam
+   passdb backend = tdbsam:%s
    load printers = no
    printing = bsd
    disable spoolss = yes
@@ -301,7 +319,7 @@ func (m *ProtocolManager) ensureSMBConfig(sharePath string) error {
    browseable = yes
    read only = no
    guest ok = no
-`, shareName, sharePath)
+`, filepath.Join(m.cfg.DataDir, "samba", "passdb.tdb"), shareName, sharePath)
 	return os.WriteFile(confPath, []byte(content), 0o644)
 }
 

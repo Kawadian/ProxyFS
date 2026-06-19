@@ -35,8 +35,8 @@ func (f *Factory) Create(ctx context.Context, node nodes.NodeInfo, cred nodes.Cr
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	pool := newPool(poolSize, func() (*pooledConn, error) {
-		return dial(ctx, node, cred, timeout)
+	pool := newPool(poolSize, func(dialCtx context.Context) (*pooledConn, error) {
+		return dial(dialCtx, node, cred, timeout)
 	})
 	return &SFTPNodeProvider{
 		node: node,
