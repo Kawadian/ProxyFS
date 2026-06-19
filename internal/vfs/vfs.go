@@ -51,12 +51,12 @@ type Mount struct {
 
 // VirtualFS aggregates multiple node backends under a unified namespace.
 type VirtualFS struct {
-	mu       sync.RWMutex
-	root     string
-	mounts   []Mount
-	dirTTL   time.Duration
-	statTTL  time.Duration
-	dirCache map[string]cachedDir
+	mu        sync.RWMutex
+	root      string
+	mounts    []Mount
+	dirTTL    time.Duration
+	statTTL   time.Duration
+	dirCache  map[string]cachedDir
 	statCache map[string]cachedStat
 }
 

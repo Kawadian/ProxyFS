@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	ErrInvalidPath   = errors.New("invalid path")
-	ErrTraversal     = errors.New("path traversal detected")
-	ErrAbsolutePath  = errors.New("absolute paths not allowed in node context")
+	ErrInvalidPath  = errors.New("invalid path")
+	ErrTraversal    = errors.New("path traversal detected")
+	ErrAbsolutePath = errors.New("absolute paths not allowed in node context")
 )
 
 // CleanVirtualPath normalizes a virtual filesystem path to POSIX style.

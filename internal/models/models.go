@@ -12,15 +12,15 @@ const (
 )
 
 type User struct {
-	ID           string    `json:"id"`
-	Username     string    `json:"username"`
-	DisplayName  string    `json:"display_name,omitempty"`
-	Email        string    `json:"email,omitempty"`
-	Role         Role      `json:"role"`
-	Enabled      bool      `json:"enabled"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+	ID          string     `json:"id"`
+	Username    string     `json:"username"`
+	DisplayName string     `json:"display_name,omitempty"`
+	Email       string     `json:"email,omitempty"`
+	Role        Role       `json:"role"`
+	Enabled     bool       `json:"enabled"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 }
 
 type UserSSHKey struct {
@@ -116,18 +116,18 @@ const (
 )
 
 type Transfer struct {
-	ID           string         `json:"id"`
-	NodeID       string         `json:"node_id"`
-	SourcePath   string         `json:"source_path"`
-	DestPath     string         `json:"dest_path"`
-	Direction    string         `json:"direction"`
-	Status       TransferStatus `json:"status"`
-	BytesTotal   int64          `json:"bytes_total"`
-	BytesDone    int64          `json:"bytes_done"`
-	Error        string         `json:"error,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
+	ID          string         `json:"id"`
+	NodeID      string         `json:"node_id"`
+	SourcePath  string         `json:"source_path"`
+	DestPath    string         `json:"dest_path"`
+	Direction   string         `json:"direction"`
+	Status      TransferStatus `json:"status"`
+	BytesTotal  int64          `json:"bytes_total"`
+	BytesDone   int64          `json:"bytes_done"`
+	Error       string         `json:"error,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	CompletedAt *time.Time     `json:"completed_at,omitempty"`
 }
 
 type Upload struct {
@@ -153,11 +153,11 @@ type Settings struct {
 }
 
 type Dashboard struct {
-	NodeCount       int `json:"node_count"`
-	ActiveTransfers int `json:"active_transfers"`
-	TotalUsers      int `json:"total_users"`
+	NodeCount       int   `json:"node_count"`
+	ActiveTransfers int   `json:"active_transfers"`
+	TotalUsers      int   `json:"total_users"`
 	StorageUsedMB   int64 `json:"storage_used_mb"`
-	RecentErrors    int `json:"recent_errors"`
+	RecentErrors    int   `json:"recent_errors"`
 }
 
 type ConfigDocument struct {

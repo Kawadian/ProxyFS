@@ -16,12 +16,12 @@ import (
 
 // VFSManager keeps VirtualFS mounts in sync with registered SFTP nodes.
 type VFSManager struct {
-	mu       sync.RWMutex
-	fs       *vfs.VirtualFS
-	store    *store.Store
-	factory  *sftpprovider.Factory
+	mu        sync.RWMutex
+	fs        *vfs.VirtualFS
+	store     *store.Store
+	factory   *sftpprovider.Factory
 	masterKey []byte
-	logger   *slog.Logger
+	logger    *slog.Logger
 	providers map[string]nodes.NodeProvider
 }
 
@@ -166,11 +166,11 @@ func (m *VFSManager) resolveCredential(ctx context.Context, node models.Node) (n
 	}
 
 	return nodes.Credential{
-		ID:       node.CredentialID,
-		NodeID:   node.ID,
-		AuthType: authType,
-		Username: username,
-		Secret:   secret,
+		ID:         node.CredentialID,
+		NodeID:     node.ID,
+		AuthType:   authType,
+		Username:   username,
+		Secret:     secret,
 		Passphrase: passphrase,
 	}, nil
 }

@@ -76,7 +76,7 @@ func (s *LockStore) Create(ctx context.Context, path, owner string, depth LockDe
 		Token:       token,
 		Path:        path,
 		Owner:       owner,
-		Depth:        depth,
+		Depth:       depth,
 		TimeoutSecs: timeoutSecs,
 		Exclusive:   exclusive,
 		CreatedAt:   now,

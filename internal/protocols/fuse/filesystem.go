@@ -361,7 +361,7 @@ func (f *fileHandle) Write(ctx context.Context, data []byte, off int64) (uint32,
 	return uint32(len(data)), 0
 }
 
-func (f *fileHandle) Flush(ctx context.Context) syscall.Errno  { return 0 }
+func (f *fileHandle) Flush(ctx context.Context) syscall.Errno   { return 0 }
 func (f *fileHandle) Release(ctx context.Context) syscall.Errno { return 0 }
 
 type byteSliceReader struct {

@@ -178,11 +178,11 @@ func (s *Store) OpenStaging(ctx context.Context, tusID string) (io.ReadCloser, i
 // TusHeaders returns standard tus response headers.
 func (u *Upload) TusHeaders() map[string]string {
 	return map[string]string{
-		"Tus-Resumable":     "1.0.0",
-		"Upload-Offset":     fmt.Sprintf("%d", u.OffsetBytes),
-		"Upload-Length":     fmt.Sprintf("%d", u.TotalSize),
-		"Upload-Expires":    u.ExpiresAt.UTC().Format(time.RFC1123),
-		"Cache-Control":     "no-store",
+		"Tus-Resumable":  "1.0.0",
+		"Upload-Offset":  fmt.Sprintf("%d", u.OffsetBytes),
+		"Upload-Length":  fmt.Sprintf("%d", u.TotalSize),
+		"Upload-Expires": u.ExpiresAt.UTC().Format(time.RFC1123),
+		"Cache-Control":  "no-store",
 	}
 }
 

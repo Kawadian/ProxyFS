@@ -19,11 +19,11 @@ import (
 
 // Handler serves SFTP requests against VirtualFS with RBAC enforcement.
 type Handler struct {
-	fs     *vfs.VirtualFS
-	rbac   rbac.Checker
-	user   *auth.User
-	hub    *hub.User
-	ctx    context.Context
+	fs   *vfs.VirtualFS
+	rbac rbac.Checker
+	user *auth.User
+	hub  *hub.User
+	ctx  context.Context
 }
 
 // NewHandler creates an SFTP handler bound to an authenticated user.
@@ -285,7 +285,7 @@ type fileInfo struct {
 	vfs.FileInfo
 }
 
-func (f fileInfo) Name() string       { return path.Base(f.Path); }
+func (f fileInfo) Name() string       { return path.Base(f.Path) }
 func (f fileInfo) Size() int64        { return f.FileInfo.Size }
 func (f fileInfo) Mode() os.FileMode  { return f.FileInfo.Mode }
 func (f fileInfo) ModTime() time.Time { return f.FileInfo.ModTime }

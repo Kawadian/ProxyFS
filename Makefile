@@ -36,9 +36,14 @@ test-unit:
 test-integration:
 	$(GO) test ./test/integration/... -count=1 -tags=integration -timeout=5m
 
-test-e2e:
+  test-e2e:
 	$(COMPOSE) --profile test --profile smb build
 	./scripts/smoke.sh
+
+test-e2e-full: build
+	@chmod +x scripts/e2e-hub.sh
+	cd frontend && npm install && npx playwright install chromium --with-deps 2>/dev/null || npx playwright install chromium
+	cd frontend && E2E_FULL=1 npm run test:e2e
 
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "install golangci-lint: https://golangci-lint.run"; exit 1; }

@@ -14,11 +14,11 @@ import (
 type Permission string
 
 const (
-	Read   Permission = "read"
-	Write  Permission = "write"
-	Delete Permission = "delete"
+	Read    Permission = "read"
+	Write   Permission = "write"
+	Delete  Permission = "delete"
 	Execute Permission = "execute"
-	List   Permission = "list"
+	List    Permission = "list"
 )
 
 // Checker authorizes Hub users for VFS paths.
