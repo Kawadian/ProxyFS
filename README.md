@@ -80,6 +80,8 @@ cd frontend && npm install && npm run dev
 
 ## Client connections
 
+Hub access (Web UI, SFTP, WebDAV, SMB) uses accounts created in the Web UI at `/setup` or **Users** (admin). Register SSH public keys under **Profile** (self-service) or **Users → SSH keys** (admin) for passwordless SFTP.
+
 ### Web UI
 Browse to http://localhost:8080
 
@@ -88,17 +90,20 @@ Browse to http://localhost:8080
 Host: hub-host
 Port: 2022
 User: your-hub-username
+Auth: password or registered SSH public key
 ```
 
 ### WebDAV (iOS Files, etc.)
 ```
 URL: http://hub-host:8080/dav/
 Auth: Basic (use HTTPS behind reverse proxy in production)
+User: your-hub-username
 ```
 
 ### SMB (Windows Explorer)
 ```
 \\hub-host\LXCFileHub
+User: your-hub-username (same password as Web UI)
 ```
 
 ## Security

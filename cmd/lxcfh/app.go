@@ -54,6 +54,7 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 	svc.VFS = vfsFS
 	svc.VFSManager = vfsMgr
 	svc.MasterKey = cfg.MasterKey
+	svc.SMBEnabled = cfg.SMBEnabled
 	svc.OnNodesChanged = func(ctx context.Context) {
 		if err := vfsMgr.Refresh(ctx); err != nil {
 			logger.Warn("vfs refresh failed", "error", err)

@@ -61,8 +61,7 @@ services:
     container_name: lxcfh-samba
     restart: unless-stopped
     environment:
-      SMB_USER: ${SMB_USER:-lxcfh}
-      SMB_PASSWORD: ${SMB_PASSWORD:-changeme}
+      LXCFH_DB_PATH: /var/lib/lxcfh/lxcfh.db
       SMB_SHARE_NAME: ${SMB_SHARE_NAME:-lxcfh}
       SMB_SHARE_PATH: /fuse-share
     ports:
@@ -70,6 +69,10 @@ services:
       - "${SMB_NBT_PORT:-139}:139"
     volumes:
       - lxcfh-fuse:/fuse-share
+      - lxcfh-data:/var/lib/lxcfh:ro
+    depends_on:
+      hub:
+        condition: service_healthy
     networks:
       - lxcfh
 

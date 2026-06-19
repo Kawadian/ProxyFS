@@ -83,6 +83,22 @@ export const keysApi = {
     }),
 };
 
+export const meApi = {
+  changePassword: (password: string) =>
+    apiFetch<void>("/me/password", {
+      method: "PUT",
+      body: JSON.stringify({ password }),
+    }),
+  listSSHKeys: () => apiFetch<UserSSHKey[]>("/me/ssh-keys"),
+  addSSHKey: (data: { name: string; public_key: string }) =>
+    apiFetch<UserSSHKey>("/me/ssh-keys", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteSSHKey: (keyId: string) =>
+    apiFetch<void>(`/me/ssh-keys/${keyId}`, { method: "DELETE" }),
+};
+
 export const usersApi = {
   list: () => apiFetch<User[]>("/users"),
   get: (id: string) => apiFetch<User>(`/users/${id}`),

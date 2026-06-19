@@ -1,5 +1,12 @@
 # syntax=docker/dockerfile:1.7
 
+FROM golang:1.24.13-bookworm AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/lxcfh-samba-sync ./internal/samba/cmd/sync
+
 FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.title="LXC File Hub Samba" \
@@ -8,25 +15,27 @@ LABEL org.opencontainers.image.title="LXC File Hub Samba" \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     samba \
     tini \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 lxcfh \
     && useradd --uid 1000 --gid lxcfh --create-home --shell /usr/sbin/nologin lxcfh
 
+COPY --from=builder /out/lxcfh-samba-sync /usr/local/bin/lxcfh-samba-sync
 COPY config/samba/smb.conf /etc/samba/smb.conf
 COPY config/samba/entrypoint.sh /usr/local/bin/samba-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/samba-entrypoint.sh \
+RUN chmod +x /usr/local/bin/samba-entrypoint.sh /usr/local/bin/lxcfh-samba-sync \
     && mkdir -p /fuse-share /var/lib/samba/private /var/log/samba /run/samba \
     && chown -R lxcfh:lxcfh /fuse-share
 
-ENV SMB_USER=lxcfh \
-    SMB_PASSWORD=changeme \
+ENV LXCFH_DB_PATH=/var/lib/lxcfh/lxcfh.db \
     SMB_SHARE_NAME=lxcfh \
-    SMB_SHARE_PATH=/fuse-share
+    SMB_SHARE_PATH=/fuse-share \
+    SAMBA_SYNC_INTERVAL=5
 
 EXPOSE 445 139
 
-VOLUME ["/fuse-share"]
+VOLUME ["/fuse-share", "/var/lib/lxcfh"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD test -S /run/samba/nmbd.pid && test -S /run/samba/smbd.pid

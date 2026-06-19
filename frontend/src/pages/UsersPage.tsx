@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound } from "lucide-react";
 import { usersApi } from "@/api/endpoints";
 import { Button } from "@/components/ui/Button";
 import { FormGroup, Input, Select } from "@/components/ui/Input";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { LoadingSpinner, StatusBadge, EmptyState, formatDate } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
+import { UserSSHKeysPanel } from "@/components/users/UserSSHKeysPanel";
 import type { User } from "@/api/types";
 
 export function UsersPage() {
@@ -18,6 +19,7 @@ export function UsersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [sshKeysUser, setSshKeysUser] = useState<User | null>(null);
   const [editing, setEditing] = useState<{
     id?: string;
     username: string;
@@ -135,6 +137,9 @@ export function UsersPage() {
                     <td className="text-sm text-muted">{u.last_login_at ? formatDate(u.last_login_at) : "—"}</td>
                     <td>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setSshKeysUser(u)} aria-label={t("users.sshKeys")}>
+                          <KeyRound size={16} />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)} aria-label={t("app.edit")}>
                           <Pencil size={16} />
                         </Button>
@@ -216,6 +221,17 @@ export function UsersPage() {
             {t("app.save")}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!sshKeysUser}
+        onOpenChange={() => setSshKeysUser(null)}
+        title={t("users.sshKeysFor", { name: sshKeysUser?.username ?? "" })}
+        size="lg"
+      >
+        {sshKeysUser && (
+          <UserSSHKeysPanel userId={sshKeysUser.id} username={sshKeysUser.username} />
+        )}
       </Modal>
 
       <ConfirmDialog

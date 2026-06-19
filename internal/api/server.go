@@ -62,6 +62,15 @@ func (s *Server) buildRouter() chi.Router {
 			r.Get("/auth/me", s.h.Me)
 			r.Post("/auth/reauth", s.h.Reauth)
 
+			r.Route("/me", func(r chi.Router) {
+				r.Put("/password", s.h.ChangeMyPassword)
+				r.Route("/ssh-keys", func(r chi.Router) {
+					r.Get("/", s.h.ListMySSHKeys)
+					r.Post("/", s.h.AddMySSHKey)
+					r.Delete("/{keyID}", s.h.DeleteMySSHKey)
+				})
+			})
+
 			r.Route("/nodes", func(r chi.Router) {
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator, models.RoleViewer)).Get("/", s.h.ListNodes)
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator)).Post("/", s.h.CreateNode)
