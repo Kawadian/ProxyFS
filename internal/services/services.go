@@ -222,15 +222,15 @@ func (s *Services) ChangePassword(ctx context.Context, id, password string) erro
 }
 
 func (s *Services) requestSambaSync(ctx context.Context, username, password string) error {
+	if username != "" && password != "" {
+		_ = s.Store.SetSambaPendingPassword(ctx, username, password)
+	}
 	settings, err := s.Store.GetSettings(ctx)
 	if err != nil {
 		return err
 	}
 	if !settings.Protocols.SMBEnabled {
 		return nil
-	}
-	if username != "" && password != "" {
-		_ = s.Store.SetSambaPendingPassword(ctx, username, password)
 	}
 	return s.Store.BumpSambaSyncNonce(ctx)
 }

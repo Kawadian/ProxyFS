@@ -20,7 +20,43 @@ import (
 	"github.com/lxcfh/lxcfh/internal/vfs"
 )
 
-const MountPath = "/dav/"
+const MountPath = "/"
+
+// LegacyMountPath is kept for backward compatibility with older clients.
+const LegacyMountPath = "/dav/"
+
+// IsWebDAVRequest reports whether the HTTP request targets the WebDAV service.
+func IsWebDAVRequest(r *http.Request) bool {
+	switch r.Method {
+	case "PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK":
+		return true
+	}
+	if r.Header.Get("Depth") != "" {
+		return true
+	}
+	if r.Method == http.MethodOptions && r.Header.Get("DAV") != "" {
+		return true
+	}
+	return false
+}
+
+// NormalizeRequestPath maps legacy /dav/ URLs to the virtual filesystem root.
+func NormalizeRequestPath(p string) string {
+	if p == LegacyMountPath || p == strings.TrimSuffix(LegacyMountPath, "/") {
+		return "/"
+	}
+	if strings.HasPrefix(p, LegacyMountPath) {
+		rest := strings.TrimPrefix(p, strings.TrimSuffix(LegacyMountPath, "/"))
+		if rest == "" {
+			return "/"
+		}
+		return rest
+	}
+	if p == "" {
+		return "/"
+	}
+	return p
+}
 
 // Config configures the WebDAV HTTP handler.
 type Config struct {
@@ -82,7 +118,8 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "webdav disabled", http.StatusServiceUnavailable)
 		return
 	}
-	if !strings.HasPrefix(r.URL.Path, s.cfg.Prefix) {
+	reqPath := NormalizeRequestPath(r.URL.Path)
+	if !strings.HasPrefix(reqPath, "/") {
 		http.NotFound(w, r)
 		return
 	}
@@ -91,7 +128,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	rel := strings.TrimPrefix(r.URL.Path, strings.TrimSuffix(s.cfg.Prefix, "/"))
+	rel := strings.TrimPrefix(reqPath, strings.TrimSuffix(s.cfg.Prefix, "/"))
 	if rel == "" {
 		rel = "/"
 	}
@@ -203,7 +240,10 @@ func (s *Server) handlePropFind(w http.ResponseWriter, r *http.Request, user *au
 	w.WriteHeader(http.StatusMultiStatus)
 	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="utf-8"?><multistatus xmlns="DAV:">`)
 	for _, e := range entries {
-		href := path.Join(strings.TrimSuffix(s.cfg.Prefix, "/"), e.Path)
+		href := s.publicPath(e.Path)
+		if e.IsDir && !strings.HasSuffix(href, "/") {
+			href += "/"
+		}
 		_, _ = fmt.Fprintf(w, `<response><href>%s</href><propstat><prop>`, xmlEscape(href))
 		if e.IsDir {
 			_, _ = fmt.Fprint(w, `<resourcetype><collection/></resourcetype>`)
@@ -495,10 +535,27 @@ func destinationToPath(dest, prefix string) string {
 		slash := strings.Index(dest[i+3:], "/")
 		if slash >= 0 {
 			dest = dest[i+3+slash:]
+		} else {
+			dest = "/"
 		}
 	}
-	dest = strings.TrimPrefix(dest, prefix)
+	dest = NormalizeRequestPath("/" + strings.TrimPrefix(dest, "/"))
+	trimmed := strings.TrimSuffix(prefix, "/")
+	if trimmed != "" && trimmed != "/" {
+		dest = strings.TrimPrefix(dest, trimmed)
+	}
 	return "/" + strings.TrimPrefix(dest, "/")
+}
+
+func (s *Server) publicPath(vfsPath string) string {
+	if vfsPath == "/" {
+		return "/"
+	}
+	prefix := strings.TrimSuffix(s.cfg.Prefix, "/")
+	if prefix == "" || prefix == "/" {
+		return vfsPath
+	}
+	return path.Join(prefix, vfsPath)
 }
 
 func depthLabel(d LockDepth) string {

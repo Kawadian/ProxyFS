@@ -135,7 +135,7 @@ func (m *ProtocolManager) Status(settings models.Settings) models.ProtocolsOverv
 				Enabled: proto.SMBEnabled,
 				Running: m.smbRunningLocked(),
 				Port:    445,
-				Path:    m.cfg.FuseMountPath,
+				Path:    m.smbShareName(),
 				Message: m.smbStatusMessageLocked(proto.SMBEnabled),
 			},
 		},
@@ -273,15 +273,20 @@ func (m *ProtocolManager) sambaInstalled() bool {
 	return err == nil
 }
 
+func (m *ProtocolManager) smbShareName() string {
+	shareName := os.Getenv("SMB_SHARE_NAME")
+	if shareName == "" {
+		shareName = "lxcfh"
+	}
+	return shareName
+}
+
 func (m *ProtocolManager) ensureSMBConfig(sharePath string) error {
 	confPath := "/etc/samba/smb.conf"
 	if err := os.MkdirAll(filepath.Dir(confPath), 0o755); err != nil {
 		return err
 	}
-	shareName := os.Getenv("SMB_SHARE_NAME")
-	if shareName == "" {
-		shareName = "lxcfh"
-	}
+	shareName := m.smbShareName()
 	content := fmt.Sprintf(`[global]
    workgroup = LXCFH
    server string = LXC File Hub
@@ -292,8 +297,13 @@ func (m *ProtocolManager) ensureSMBConfig(sharePath string) error {
    printing = bsd
    disable spoolss = yes
    server min protocol = SMB2
+   client min protocol = SMB2
+   fruit:metadata = stream
+   fruit:model = MacSamba
+   vfs objects = fruit streams_xattr
    pid directory = /run/samba
    log file = /var/log/samba/log.%%m
+   max log size = 50
 
 [%s]
    comment = LXC File Hub
