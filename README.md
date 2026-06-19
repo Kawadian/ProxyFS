@@ -37,11 +37,7 @@ All protocols share a common Virtual File System (VFS). Each registered node app
 
 ## SMB / FUSE mode
 
-```bash
-SMB_ENABLED=true docker compose --profile smb up -d --build
-```
-
-Hub requires `/dev/fuse` and `SYS_ADMIN` capability (no `privileged: true`). Set `SMB_ENABLED=false` to run Web/SFTP/WebDAV only.
+SMB is started and stopped from the Web UI under **Protocols** (admin). The hub image includes Samba and exports the same VirtualFS as SFTP/WebDAV. Docker requires `/dev/fuse` and `SYS_ADMIN` on the hub container (already set in `compose.yaml`).
 
 ## Test SFTP node
 

@@ -42,6 +42,7 @@
     "nodes": "ノード",
     "credentials": "認証情報",
     "keys": "キー保管庫",
+    "protocols": "プロトコル",
     "users": "ユーザー",
     "transfers": "転送",
     "profile": "プロフィール",
@@ -157,6 +158,20 @@
       "admin": "管理者",
       "operator": "オペレーター",
       "viewer": "閲覧者"
+    }
+  },
+  "protocols": {
+    "title": "プロトコル",
+    "description": "ハブのプロトコルサービスを起動・停止します。コンテナの再起動や .env の変更は不要です。",
+    "enabled": "有効",
+    "running": "稼働中",
+    "path": "パス",
+    "start": "起動",
+    "stop": "停止",
+    "names": {
+      "sftp": "SFTP",
+      "webdav": "WebDAV",
+      "smb": "SMB"
     }
   },
   "profile": {

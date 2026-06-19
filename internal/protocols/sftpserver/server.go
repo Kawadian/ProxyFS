@@ -114,6 +114,13 @@ func (s *Server) Stop() error {
 	return s.sshSrv.Close()
 }
 
+// IsRunning reports whether the SFTP listener is active.
+func (s *Server) IsRunning() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.running
+}
+
 func (s *Server) sessionHandler(sess ssh.Session) {
 	user := sess.Context().Value(ctxUserKey{}).(*auth.User)
 	if user == nil {

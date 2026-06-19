@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/lxcfh/lxcfh/internal/auth"
@@ -29,12 +30,13 @@ type Config struct {
 
 // Server serves WebDAV over HTTP.
 type Server struct {
-	cfg    Config
-	auth   *auth.Service
-	fs     *vfs.VirtualFS
-	rbac   *rbac.Engine
-	locks  *LockStore
-	logger *slog.Logger
+	cfg     Config
+	auth    *auth.Service
+	fs      *vfs.VirtualFS
+	rbac    *rbac.Engine
+	locks   *LockStore
+	logger  *slog.Logger
+	enabled atomic.Bool
 }
 
 // New creates a WebDAV server.
@@ -48,7 +50,7 @@ func New(cfg Config, authSvc *auth.Service, fs *vfs.VirtualFS, checker *rbac.Eng
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Server{
+	s := &Server{
 		cfg:    cfg,
 		auth:   authSvc,
 		fs:     fs,
@@ -56,6 +58,18 @@ func New(cfg Config, authSvc *auth.Service, fs *vfs.VirtualFS, checker *rbac.Eng
 		locks:  locks,
 		logger: logger,
 	}
+	s.enabled.Store(true)
+	return s
+}
+
+// SetEnabled toggles WebDAV request handling without stopping HTTP.
+func (s *Server) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
+}
+
+// IsEnabled reports whether WebDAV accepts requests.
+func (s *Server) IsEnabled() bool {
+	return s.enabled.Load()
 }
 
 // Handler returns an http.Handler mounted at the configured prefix.
@@ -64,6 +78,10 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if !s.enabled.Load() {
+		http.Error(w, "webdav disabled", http.StatusServiceUnavailable)
+		return
+	}
 	if !strings.HasPrefix(r.URL.Path, s.cfg.Prefix) {
 		http.NotFound(w, r)
 		return

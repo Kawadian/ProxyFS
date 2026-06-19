@@ -85,6 +85,25 @@ export interface Transfer {
   completed_at?: string;
 }
 
+export interface ProtocolSettings {
+  sftp_enabled: boolean;
+  webdav_enabled: boolean;
+  smb_enabled: boolean;
+}
+
+export interface ProtocolStatus {
+  name: string;
+  enabled: boolean;
+  running: boolean;
+  port?: number;
+  path?: string;
+  message?: string;
+}
+
+export interface ProtocolsOverview {
+  protocols: ProtocolStatus[];
+}
+
 export interface Settings {
   site_name: string;
   session_timeout_min: number;
@@ -94,6 +113,7 @@ export interface Settings {
   allow_registration: boolean;
   default_node_port: number;
   backup_retention_days: number;
+  protocols?: ProtocolSettings;
 }
 
 export interface Dashboard {

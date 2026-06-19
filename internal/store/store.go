@@ -215,6 +215,7 @@ func (s *Store) ensureDefaultSettings() error {
 		AllowRegistration:   false,
 		DefaultNodePort:     22,
 		BackupRetentionDays: 7,
+		Protocols:           models.DefaultProtocolSettings(),
 	}
 	data, err := json.Marshal(def)
 	if err != nil {
@@ -240,7 +241,16 @@ func (s *Store) GetSettings(ctx context.Context) (models.Settings, error) {
 	if err := json.Unmarshal([]byte(data), &settings); err != nil {
 		return models.Settings{}, err
 	}
+	settings = normalizeSettings(settings)
 	return settings, nil
+}
+
+func normalizeSettings(settings models.Settings) models.Settings {
+	def := models.DefaultProtocolSettings()
+	if settings.Protocols == (models.ProtocolSettings{}) {
+		settings.Protocols = def
+	}
+	return settings
 }
 
 func (s *Store) UpdateSettings(ctx context.Context, settings models.Settings) error {
