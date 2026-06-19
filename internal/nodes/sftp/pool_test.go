@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+type poolTestContextKey struct{}
+
 func TestPoolFactoryUsesGetContext(t *testing.T) {
 	creationCtx, cancelCreation := context.WithCancel(context.Background())
 	cancelCreation()
@@ -16,7 +18,7 @@ func TestPoolFactoryUsesGetContext(t *testing.T) {
 	})
 	defer p.Close()
 
-	getCtx := context.WithValue(context.Background(), struct{}{}, "get")
+	getCtx := context.WithValue(context.Background(), poolTestContextKey{}, "get")
 	conn, err := p.Get(getCtx)
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
