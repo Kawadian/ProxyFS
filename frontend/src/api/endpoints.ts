@@ -217,11 +217,11 @@ export const settingsApi = {
 
 export const backupApi = {
   create: () => apiFetch<BackupResult>("/backup", { method: "POST" }),
-  restore: (data: ArrayBuffer) =>
+  restore: (yaml: string) =>
     apiFetch<void>("/backup/restore", {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
-      body: data,
+      headers: { "Content-Type": "application/x-yaml" },
+      body: yaml,
     }),
 };
 

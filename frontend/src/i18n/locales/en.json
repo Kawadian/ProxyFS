@@ -220,8 +220,10 @@
   "backup": {
     "title": "Backup & Restore",
     "create": "Create backup",
+    "createDescription": "Export node definitions as a human-editable YAML file (no IDs or runtime state).",
     "restore": "Restore from file",
-    "restoreConfirm": "Restore will overwrite current data. Continue?",
+    "restoreDescription": "Import a YAML backup to add, update, or remove nodes. Users, credentials, and other settings are not changed.",
+    "restoreConfirm": "Restore will replace all nodes with the contents of the backup file. Continue?",
     "lastBackup": "Last backup",
     "size": "Size",
     "created": "Created",

@@ -15,7 +15,7 @@ export function BackupPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [lastBackup, setLastBackup] = useState<BackupResult | null>(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
-  const [restoreData, setRestoreData] = useState<ArrayBuffer | null>(null);
+  const [restoreYaml, setRestoreYaml] = useState<string | null>(null);
 
   const backupMutation = useMutation({
     mutationFn: backupApi.create,
@@ -27,10 +27,10 @@ export function BackupPage() {
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (data: ArrayBuffer) => backupApi.restore(data),
+    mutationFn: (yaml: string) => backupApi.restore(yaml),
     onSuccess: () => {
       setRestoreOpen(false);
-      setRestoreData(null);
+      setRestoreYaml(null);
       toast(t("app.success"), undefined, "success");
     },
     onError: (e: Error) => toast(t("app.error"), e.message, "error"),
@@ -41,10 +41,10 @@ export function BackupPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      setRestoreData(reader.result as ArrayBuffer);
+      setRestoreYaml(reader.result as string);
       setRestoreOpen(true);
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -56,9 +56,7 @@ export function BackupPage() {
         <div className="card">
           <div className="card-body">
             <h2 className="card-title mb-4">{t("backup.create")}</h2>
-            <p className="text-sm text-muted mb-4">
-              Create a full backup of the hub database and configuration.
-            </p>
+            <p className="text-sm text-muted mb-4">{t("backup.createDescription")}</p>
             <Button onClick={() => backupMutation.mutate()} disabled={backupMutation.isPending}>
               <Database size={16} />
               {backupMutation.isPending ? t("backup.creating") : t("backup.create")}
@@ -69,13 +67,11 @@ export function BackupPage() {
         <div className="card">
           <div className="card-body">
             <h2 className="card-title mb-4">{t("backup.restore")}</h2>
-            <p className="text-sm text-muted mb-4">
-              Restore from a previously created backup file.
-            </p>
+            <p className="text-sm text-muted mb-4">{t("backup.restoreDescription")}</p>
             <Button variant="secondary" onClick={() => fileRef.current?.click()}>
               <Upload size={16} /> {t("backup.restore")}
             </Button>
-            <input ref={fileRef} type="file" accept=".db,.sqlite,.backup,.bin" hidden onChange={handleFileSelect} />
+            <input ref={fileRef} type="file" accept=".yaml,.yml" hidden onChange={handleFileSelect} />
           </div>
         </div>
       </div>
@@ -111,7 +107,7 @@ export function BackupPage() {
         description={t("backup.restoreConfirm")}
         confirmLabel={t("backup.restore")}
         variant="danger"
-        onConfirm={() => restoreData && restoreMutation.mutate(restoreData)}
+        onConfirm={() => restoreYaml && restoreMutation.mutate(restoreYaml)}
         loading={restoreMutation.isPending}
       />
     </div>

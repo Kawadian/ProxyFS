@@ -200,6 +200,24 @@ type ConfigDocument struct {
 	Extra       map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
 }
 
+// NodesBackupDocument is a human-editable YAML backup containing only node definitions.
+type NodesBackupDocument struct {
+	Version int        `yaml:"version"`
+	Nodes   []NodeSpec `yaml:"nodes"`
+}
+
+// NodeSpec holds manually configurable node fields (no IDs or runtime state).
+type NodeSpec struct {
+	Name       string            `yaml:"name"`
+	Host       string            `yaml:"host"`
+	Port       int               `yaml:"port,omitempty"`
+	Username   string            `yaml:"username,omitempty"`
+	Credential string            `yaml:"credential,omitempty"`
+	Key        string            `yaml:"key,omitempty"`
+	Labels     map[string]string `yaml:"labels,omitempty"`
+	Enabled    *bool             `yaml:"enabled,omitempty"`
+}
+
 type PingResult struct {
 	NodeID    string `json:"node_id"`
 	Reachable bool   `json:"reachable"`
