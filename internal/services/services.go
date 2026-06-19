@@ -803,6 +803,10 @@ func (s *Services) ApplyConfig(ctx context.Context, doc models.ConfigDocument) e
 	return s.Store.ReplaceAllConfig(ctx, doc)
 }
 
+func (s *Services) RestoreNodes(ctx context.Context, specs []models.NodeSpec) error {
+	return s.restoreNodesBackup(ctx, specs)
+}
+
 func (s *Services) Dashboard(ctx context.Context) (models.Dashboard, error) {
 	nodes, err := s.Store.ListNodes(ctx)
 	if err != nil {
