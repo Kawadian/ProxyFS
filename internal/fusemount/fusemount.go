@@ -33,8 +33,9 @@ func Mount(mountPoint, backendDir string) error {
 
 	opts := &fs.Options{
 		MountOptions: fuse.MountOptions{
-			AllowOther: true,
-			Name:       "lxcfh-fuse",
+			AllowOther:  true,
+			Name:        "lxcfh-fuse",
+			DirectMount: true,
 		},
 	}
 
