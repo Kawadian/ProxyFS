@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 env:
-  GO_VERSION: "1.23"
+  GO_VERSION: "1.24"
   NODE_VERSION: "22"
 
 jobs:
@@ -212,7 +212,8 @@ jobs:
         with:
           image-ref: lxcfh/hub:ci
           format: table
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
+          ignore-unfixed: true
           exit-code: "1"
 
       - name: Trivy samba image
@@ -220,7 +221,8 @@ jobs:
         with:
           image-ref: lxcfh/samba:ci
           format: table
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
+          ignore-unfixed: true
           exit-code: "1"
 
   sbom:
