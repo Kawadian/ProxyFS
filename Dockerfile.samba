@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1.7
+
+FROM debian:bookworm-slim
+
+LABEL org.opencontainers.image.title="LXC File Hub Samba" \
+      org.opencontainers.image.description="Samba 4 sidecar for lxcfh FUSE share export"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    samba \
+    tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 lxcfh \
+    && useradd --uid 1000 --gid lxcfh --create-home --shell /usr/sbin/nologin lxcfh
+
+COPY config/samba/smb.conf /etc/samba/smb.conf
+COPY config/samba/entrypoint.sh /usr/local/bin/samba-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/samba-entrypoint.sh \
+    && mkdir -p /fuse-share /var/lib/samba/private /var/log/samba /run/samba \
+    && chown -R lxcfh:lxcfh /fuse-share
+
+ENV SMB_USER=lxcfh \
+    SMB_PASSWORD=changeme \
+    SMB_SHARE_NAME=lxcfh \
+    SMB_SHARE_PATH=/fuse-share
+
+EXPOSE 445 139
+
+VOLUME ["/fuse-share"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD test -S /run/samba/nmbd.pid && test -S /run/samba/smbd.pid
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/samba-entrypoint.sh"]

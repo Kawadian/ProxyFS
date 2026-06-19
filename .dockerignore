@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Dependencies & build output
+node_modules
+web/dist
+cmd/lxcfh/static
+bin
+dist
+coverage
+*.out
+*.test
+
+# Local env & secrets (never bake into images)
+.env
+.env.*
+!.env.example
+secrets/**/*
+!secrets/**/.gitkeep
+!secrets/**/README.md
+!secrets/**/*.example
+
+# IDE & OS
+.idea
+.vscode
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+compose.override.yaml
+docker-data
+
+# CI artifacts
+.sbom
+reports
+
+# Docs scratch
+*.md
+!README.md

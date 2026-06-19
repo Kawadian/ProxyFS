@@ -1,0 +1,1703 @@
+openapi: 3.1.0
+info:
+  title: LXC File Hub API
+  version: 1.0.0
+  description: REST API for LXC File Hub (lxcfh) — section 10.2
+servers:
+  - url: /api/v1
+    description: API v1 base path
+paths:
+  /auth/setup:
+    post:
+      tags: [Auth]
+      summary: Initial system setup
+      operationId: authSetup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+      responses:
+        '201':
+          description: Setup complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      operationId: authLogout
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Logged out
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      operationId: authMe
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/reauth:
+    post:
+      tags: [Auth]
+      summary: Re-authenticate with password
+      operationId: authReauth
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '204':
+          description: Re-authenticated
+  /nodes:
+    get:
+      tags: [Nodes]
+      summary: List nodes
+      operationId: listNodes
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Node list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Node'
+    post:
+      tags: [Nodes]
+      summary: Create node
+      operationId: createNode
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Node'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+  /nodes/{nodeID}:
+    parameters:
+      - $ref: '#/components/parameters/nodeID'
+    get:
+      tags: [Nodes]
+      summary: Get node
+      operationId: getNode
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Node
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+    patch:
+      tags: [Nodes]
+      summary: Update node
+      operationId: updateNode
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Node'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+    delete:
+      tags: [Nodes]
+      summary: Delete node
+      operationId: deleteNode
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /nodes/{nodeID}/ping:
+    parameters:
+      - $ref: '#/components/parameters/nodeID'
+    post:
+      tags: [Nodes]
+      summary: Ping node
+      operationId: pingNode
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Ping result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResult'
+  /nodes/{nodeID}/test:
+    parameters:
+      - $ref: '#/components/parameters/nodeID'
+    post:
+      tags: [Nodes]
+      summary: Test node connection
+      operationId: testNode
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestResult'
+  /nodes/{nodeID}/accept-host-key:
+    parameters:
+      - $ref: '#/components/parameters/nodeID'
+    post:
+      tags: [Nodes]
+      summary: Accept SSH host key
+      operationId: acceptHostKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fingerprint]
+              properties:
+                fingerprint:
+                  type: string
+      responses:
+        '200':
+          description: Updated node
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+  /credentials:
+    get:
+      tags: [Credentials]
+      summary: List credentials
+      operationId: listCredentials
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Credential list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Credential'
+    post:
+      tags: [Credentials]
+      summary: Create credential
+      operationId: createCredential
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+  /credentials/{credentialID}:
+    parameters:
+      - $ref: '#/components/parameters/credentialID'
+    get:
+      tags: [Credentials]
+      summary: Get credential
+      operationId: getCredential
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Credential
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+    patch:
+      tags: [Credentials]
+      summary: Update credential
+      operationId: updateCredential
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+    delete:
+      tags: [Credentials]
+      summary: Delete credential
+      operationId: deleteCredential
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /credentials/{credentialID}/test:
+    parameters:
+      - $ref: '#/components/parameters/credentialID'
+    post:
+      tags: [Credentials]
+      summary: Test credential
+      operationId: testCredential
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestResult'
+  /keys:
+    get:
+      tags: [Keys]
+      summary: List SSH keys
+      operationId: listKeys
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Key list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SSHKey'
+  /keys/upload:
+    post:
+      tags: [Keys]
+      summary: Upload SSH key
+      operationId: uploadKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadKeyRequest'
+      responses:
+        '201':
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSHKey'
+  /keys/generate:
+    post:
+      tags: [Keys]
+      summary: Generate SSH key
+      operationId: generateKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateKeyRequest'
+      responses:
+        '201':
+          description: Generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSHKey'
+  /keys/{keyID}:
+    parameters:
+      - $ref: '#/components/parameters/keyID'
+    delete:
+      tags: [Keys]
+      summary: Delete SSH key
+      operationId: deleteKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /keys/{keyID}/download-private:
+    parameters:
+      - $ref: '#/components/parameters/keyID'
+    get:
+      tags: [Keys]
+      summary: Download private key
+      operationId: downloadPrivateKey
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Private key PEM
+          content:
+            application/x-pem-file:
+              schema:
+                type: string
+  /keys/{keyID}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/keyID'
+    post:
+      tags: [Keys]
+      summary: Rotate SSH key
+      operationId: rotateKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: New key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSHKey'
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      operationId: listUsers
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags: [Users]
+      summary: Create user
+      operationId: createUser
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{userID}:
+    parameters:
+      - $ref: '#/components/parameters/userID'
+    get:
+      tags: [Users]
+      summary: Get user
+      operationId: getUser
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      tags: [Users]
+      summary: Update user
+      operationId: updateUser
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      tags: [Users]
+      summary: Delete user
+      operationId: deleteUser
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /users/{userID}/password:
+    parameters:
+      - $ref: '#/components/parameters/userID'
+    put:
+      tags: [Users]
+      summary: Change user password
+      operationId: changePassword
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '204':
+          description: Password changed
+  /users/{userID}/ssh-keys:
+    parameters:
+      - $ref: '#/components/parameters/userID'
+    get:
+      tags: [Users]
+      summary: List user SSH keys
+      operationId: listUserSSHKeys
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: SSH keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSSHKey'
+    post:
+      tags: [Users]
+      summary: Add user SSH key
+      operationId: addUserSSHKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SSHKeyRequest'
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSSHKey'
+  /users/{userID}/ssh-keys/{keyID}:
+    parameters:
+      - $ref: '#/components/parameters/userID'
+      - $ref: '#/components/parameters/keyID'
+    delete:
+      tags: [Users]
+      summary: Delete user SSH key
+      operationId: deleteUserSSHKey
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /fs/list:
+    get:
+      tags: [Filesystem]
+      summary: List directory
+      operationId: fsList
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: node_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Directory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileEntry'
+  /fs/stat:
+    get:
+      tags: [Filesystem]
+      summary: Stat path
+      operationId: fsStat
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: node_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File stat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileStat'
+  /fs/download:
+    get:
+      tags: [Filesystem]
+      summary: Download file
+      operationId: fsDownload
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: node_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  /fs/mkdir:
+    post:
+      tags: [Filesystem]
+      summary: Create directory
+      operationId: fsMkdir
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FSPathRequest'
+      responses:
+        '201':
+          description: Created
+  /fs/rename:
+    post:
+      tags: [Filesystem]
+      summary: Rename path
+      operationId: fsRename
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FSRenameRequest'
+      responses:
+        '204':
+          description: Renamed
+  /fs/delete:
+    delete:
+      tags: [Filesystem]
+      summary: Delete path
+      operationId: fsDelete
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      parameters:
+        - name: node_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+  /fs/text:
+    get:
+      tags: [Filesystem]
+      summary: Read text file
+      operationId: fsReadText
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: node_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Text content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+    put:
+      tags: [Filesystem]
+      summary: Write text file
+      operationId: fsWriteText
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FSTextWriteRequest'
+      responses:
+        '204':
+          description: Written
+  /transfers:
+    get:
+      tags: [Transfers]
+      summary: List transfers
+      operationId: listTransfers
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Transfer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transfer'
+    post:
+      tags: [Transfers]
+      summary: Create transfer
+      operationId: createTransfer
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transfer'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+  /transfers/{transferID}:
+    parameters:
+      - $ref: '#/components/parameters/transferID'
+    get:
+      tags: [Transfers]
+      summary: Get transfer
+      operationId: getTransfer
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Transfer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+    delete:
+      tags: [Transfers]
+      summary: Delete transfer
+      operationId: deleteTransfer
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /transfers/{transferID}/pause:
+    parameters:
+      - $ref: '#/components/parameters/transferID'
+    post:
+      tags: [Transfers]
+      summary: Pause transfer
+      operationId: pauseTransfer
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+  /transfers/{transferID}/resume:
+    parameters:
+      - $ref: '#/components/parameters/transferID'
+    post:
+      tags: [Transfers]
+      summary: Resume transfer
+      operationId: resumeTransfer
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+  /transfers/{transferID}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/transferID'
+    post:
+      tags: [Transfers]
+      summary: Cancel transfer
+      operationId: cancelTransfer
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+  /transfers/{transferID}/retry:
+    parameters:
+      - $ref: '#/components/parameters/transferID'
+    post:
+      tags: [Transfers]
+      summary: Retry transfer
+      operationId: retryTransfer
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Retried
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+  /uploads:
+    post:
+      tags: [Uploads]
+      summary: Create tus upload
+      operationId: createUpload
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      parameters:
+        - name: Upload-Length
+          in: header
+          schema:
+            type: integer
+        - name: Upload-Node-ID
+          in: header
+          schema:
+            type: string
+        - name: Upload-Path
+          in: header
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Upload created
+          headers:
+            Location:
+              schema:
+                type: string
+            Upload-Offset:
+              schema:
+                type: integer
+            Tus-Resumable:
+              schema:
+                type: string
+  /uploads/{uploadID}:
+    parameters:
+      - $ref: '#/components/parameters/uploadID'
+    head:
+      tags: [Uploads]
+      summary: tus HEAD upload
+      operationId: headUpload
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Upload status
+          headers:
+            Upload-Offset:
+              schema:
+                type: integer
+            Upload-Length:
+              schema:
+                type: integer
+            Tus-Resumable:
+              schema:
+                type: string
+    patch:
+      tags: [Uploads]
+      summary: tus PATCH upload
+      operationId: patchUpload
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      parameters:
+        - name: Upload-Offset
+          in: header
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/offset+octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Chunk uploaded
+          headers:
+            Upload-Offset:
+              schema:
+                type: integer
+            Tus-Resumable:
+              schema:
+                type: string
+    get:
+      tags: [Uploads]
+      summary: Get upload metadata
+      operationId: getUpload
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Upload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+    delete:
+      tags: [Uploads]
+      summary: Delete upload
+      operationId: deleteUpload
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '204':
+          description: Deleted
+  /config/export:
+    get:
+      tags: [Config]
+      summary: Export configuration as YAML
+      operationId: configExport
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: YAML configuration
+          content:
+            application/x-yaml:
+              schema:
+                type: string
+  /config/validate:
+    post:
+      tags: [Config]
+      summary: Validate configuration YAML
+      operationId: configValidate
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/x-yaml:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+  /config/preview:
+    post:
+      tags: [Config]
+      summary: Preview configuration changes
+      operationId: configPreview
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/x-yaml:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigPreview'
+  /config/apply:
+    post:
+      tags: [Config]
+      summary: Apply configuration (full replacement)
+      operationId: configApply
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/x-yaml:
+            schema:
+              type: string
+      responses:
+        '204':
+          description: Applied
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Get settings
+      operationId: getSettings
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    patch:
+      tags: [Settings]
+      summary: Patch settings
+      operationId: patchSettings
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Settings'
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+  /backup:
+    post:
+      tags: [Backup]
+      summary: Create backup
+      operationId: backup
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      responses:
+        '201':
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupResult'
+  /backup/restore:
+    post:
+      tags: [Backup]
+      summary: Restore from backup
+      operationId: restoreBackup
+      security:
+        - sessionAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Restored
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard summary
+      operationId: dashboard
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: healthLive
+      servers:
+        - url: /
+      responses:
+        '200':
+          description: Alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: healthReady
+      servers:
+        - url: /
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: lxcfh_session
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  parameters:
+    nodeID:
+      name: nodeID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    credentialID:
+      name: credentialID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    keyID:
+      name: keyID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    userID:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    transferID:
+      name: transferID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    uploadID:
+      name: uploadID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ServiceUnavailable:
+      description: Service unavailable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+    SetupRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        display_name:
+          type: string
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        csrf_token:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, operator, viewer]
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+    CreateUserRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        display_name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, operator, viewer]
+    UpdateUserRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, operator, viewer]
+        enabled:
+          type: boolean
+    UserSSHKey:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        name:
+          type: string
+        fingerprint:
+          type: string
+        public_key:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    SSHKeyRequest:
+      type: object
+      required: [name, public_key]
+      properties:
+        name:
+          type: string
+        public_key:
+          type: string
+    Node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        credential_id:
+          type: string
+        key_id:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        enabled:
+          type: boolean
+        host_key_status:
+          type: string
+        host_key_fingerprint:
+          type: string
+        last_ping_at:
+          type: string
+          format: date-time
+        last_ping_status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PingResult:
+      type: object
+      properties:
+        node_id:
+          type: string
+        reachable:
+          type: boolean
+        latency_ms:
+          type: integer
+        message:
+          type: string
+    TestResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    Credential:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        username:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CredentialRequest:
+      type: object
+      required: [name, type, secret]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        username:
+          type: string
+        secret:
+          type: string
+    SSHKey:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        fingerprint:
+          type: string
+        public_key:
+          type: string
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UploadKeyRequest:
+      type: object
+      required: [name, private_key]
+      properties:
+        name:
+          type: string
+        private_key:
+          type: string
+        comment:
+          type: string
+    GenerateKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        comment:
+          type: string
+    FileEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        is_dir:
+          type: boolean
+        size:
+          type: integer
+        mode:
+          type: string
+        mod_time:
+          type: string
+    FileStat:
+      type: object
+      properties:
+        path:
+          type: string
+        is_dir:
+          type: boolean
+        size:
+          type: integer
+        mode:
+          type: string
+        mod_time:
+          type: string
+    FSPathRequest:
+      type: object
+      required: [node_id, path]
+      properties:
+        node_id:
+          type: string
+        path:
+          type: string
+    FSRenameRequest:
+      type: object
+      required: [node_id, from, to]
+      properties:
+        node_id:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+    FSTextWriteRequest:
+      type: object
+      required: [node_id, path, content]
+      properties:
+        node_id:
+          type: string
+        path:
+          type: string
+        content:
+          type: string
+    Transfer:
+      type: object
+      properties:
+        id:
+          type: string
+        node_id:
+          type: string
+        source_path:
+          type: string
+        dest_path:
+          type: string
+        direction:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, paused, completed, failed, cancelled]
+        bytes_total:
+          type: integer
+        bytes_done:
+          type: integer
+        error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+    Upload:
+      type: object
+      properties:
+        id:
+          type: string
+        node_id:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        offset:
+          type: integer
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Settings:
+      type: object
+      properties:
+        site_name:
+          type: string
+        session_timeout_min:
+          type: integer
+        max_upload_size_mb:
+          type: integer
+        rate_limit_per_minute:
+          type: integer
+        require_reauth:
+          type: boolean
+        allow_registration:
+          type: boolean
+        default_node_port:
+          type: integer
+        backup_retention_days:
+          type: integer
+    ValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+    ConfigPreview:
+      type: object
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigChange'
+    ConfigChange:
+      type: object
+      properties:
+        resource:
+          type: string
+        action:
+          type: string
+        detail:
+          type: string
+    BackupResult:
+      type: object
+      properties:
+        path:
+          type: string
+        size:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    Dashboard:
+      type: object
+      properties:
+        node_count:
+          type: integer
+        active_transfers:
+          type: integer
+        total_users:
+          type: integer
+        storage_used_mb:
+          type: integer
+        recent_errors:
+          type: integer
