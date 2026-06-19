@@ -101,7 +101,9 @@
     "openNodeHint": "ノードのフォルダを開くとファイルを参照できます。",
     "nodeRootHint": "パンくずから接続先一覧に戻れます。",
     "pasteHere": "ここに貼り付け",
-    "chooseDestination": "先に貼り付け先ノードを開いてください。"
+    "chooseDestination": "先に貼り付け先ノードを開いてください。",
+    "clipboardCopy": "コピー: {{name}}",
+    "clipboardMove": "移動: {{name}}"
   },
   "nodes": {
     "title": "ノード",

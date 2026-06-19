@@ -155,6 +155,21 @@ export function FilesPage() {
     a.click();
   };
 
+  const copySelection = (mode: "copy" | "move") => {
+    if (!selected || !nodeId) return;
+    setClipboard({
+      entry: selected,
+      nodeId,
+      nodeName: currentNode?.name ?? nodeId,
+      path: selected.path,
+      mode,
+    });
+  };
+
+  const stopRowClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !nodeId) return;
@@ -184,6 +199,27 @@ export function FilesPage() {
           </div>
           {canWrite && nodeId && (
             <div className="flex gap-2 flex-wrap" style={{ marginTop: "auto" }}>
+              {selected && (
+                <>
+                  <Button variant="secondary" size="sm" onClick={() => copySelection("copy")}>
+                    <Copy size={16} /> {t("app.copy")}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => copySelection("move")}>
+                    <Move size={16} /> {t("app.move")}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => { setInputValue(selected.name); setRenameOpen(true); }}>
+                    <Pencil size={16} /> {t("app.rename")}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setDeleteOpen(true)}>
+                    <Trash2 size={16} /> {t("app.delete")}
+                  </Button>
+                  {!selected.is_dir && (
+                    <Button variant="secondary" size="sm" onClick={handleDownload}>
+                      <Download size={16} /> {t("app.download")}
+                    </Button>
+                  )}
+                </>
+              )}
               <Button variant="secondary" size="sm" onClick={() => { setInputValue(""); setMkdirOpen(true); }}>
                 <FolderPlus size={16} /> {t("files.newFolder")}
               </Button>
@@ -203,6 +239,32 @@ export function FilesPage() {
           </div>
         )}
       </div>
+
+      {clipboard && (
+        <div className="card mb-4 clipboard-banner">
+          <div className="card-body flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <strong>
+                {clipboard.mode === "copy" ? t("files.clipboardCopy", { name: clipboard.entry.name }) : t("files.clipboardMove", { name: clipboard.entry.name })}
+              </strong>
+              <p className="text-sm text-muted">{clipboard.nodeName} / {clipboard.path}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => pasteMutation.mutate()}
+                disabled={!nodeId || pasteMutation.isPending}
+                title={!nodeId ? t("files.chooseDestination") : undefined}
+              >
+                <ClipboardPaste size={16} /> {t("files.pasteHere")}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setClipboard(null)}>
+                <X size={16} /> {t("app.cancel")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <>
           <nav className="breadcrumb" aria-label="Breadcrumb">
@@ -238,42 +300,46 @@ export function FilesPage() {
                   <div
                     key={entry.path}
                     className={`file-item ${selected?.path === entry.path ? "selected" : ""}`}
-                    onClick={() => openEntry(entry)}
-                    onDoubleClick={() => entry.is_dir && openEntry(entry)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && openEntry(entry)}
                   >
-                    {entry.is_dir ? (
-                      <Folder className="file-icon" size={20} />
-                    ) : (
-                      <File className="file-icon" size={20} />
-                    )}
-                    <div className="file-meta">
-                      <div className="file-name">{entry.name}</div>
-                      <div className="file-size">
-                        {entry.is_dir ? "—" : formatBytes(entry.size)} · {entry.mod_time}
+                    <div
+                      className="file-item-main"
+                      onClick={() => openEntry(entry)}
+                      onDoubleClick={() => entry.is_dir && openEntry(entry)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && openEntry(entry)}
+                    >
+                      {entry.is_dir ? (
+                        <Folder className="file-icon" size={20} />
+                      ) : (
+                        <File className="file-icon" size={20} />
+                      )}
+                      <div className="file-meta">
+                        <div className="file-name">{entry.name}</div>
+                        <div className="file-size">
+                          {entry.is_dir ? "—" : formatBytes(entry.size)} · {entry.mod_time}
+                        </div>
                       </div>
                     </div>
                     {selected?.path === entry.path && (
-                      <div className="file-actions" onClick={(e) => e.stopPropagation()}>
+                      <div className="file-actions">
                         {nodeId && !entry.is_dir && (
-                          <Button variant="ghost" size="icon" onClick={handleDownload} aria-label={t("app.download")}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { stopRowClick(e); handleDownload(); }} aria-label={t("app.download")}>
                             <Download size={16} />
                           </Button>
                         )}
                         {canWrite && nodeId && (
                           <>
-                            <Button variant="ghost" size="icon" onClick={() => { setInputValue(entry.name); setRenameOpen(true); }} aria-label={t("app.rename")}>
+                            <Button variant="ghost" size="icon" onClick={(e) => { stopRowClick(e); setInputValue(entry.name); setRenameOpen(true); }} aria-label={t("app.rename")}>
                               <Pencil size={16} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setClipboard({ entry, nodeId, nodeName: currentNode?.name ?? nodeId, path: entry.path, mode: "copy" })} aria-label={t("app.copy")}>
+                            <Button variant="ghost" size="icon" onClick={(e) => { stopRowClick(e); copySelection("copy"); }} aria-label={t("app.copy")}>
                               <Copy size={16} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setClipboard({ entry, nodeId, nodeName: currentNode?.name ?? nodeId, path: entry.path, mode: "move" })} aria-label={t("app.move")}>
+                            <Button variant="ghost" size="icon" onClick={(e) => { stopRowClick(e); copySelection("move"); }} aria-label={t("app.move")}>
                               <Move size={16} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)} aria-label={t("app.delete")}>
+                            <Button variant="ghost" size="icon" onClick={(e) => { stopRowClick(e); setDeleteOpen(true); }} aria-label={t("app.delete")}>
                               <Trash2 size={16} />
                             </Button>
                           </>
@@ -310,30 +376,6 @@ export function FilesPage() {
           </Button>
         </div>
       </Modal>
-
-      {clipboard && (
-        <div className="card mb-4">
-          <div className="card-body flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <strong>{clipboard.mode === "copy" ? t("app.copy") : t("app.move")}: {clipboard.entry.name}</strong>
-              <p className="text-sm text-muted">{clipboard.nodeName} / {clipboard.path}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => pasteMutation.mutate()}
-                disabled={!nodeId || pasteMutation.isPending}
-                title={!nodeId ? t("files.chooseDestination") : undefined}
-              >
-                <ClipboardPaste size={16} /> {t("files.pasteHere")}
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setClipboard(null)}>
-                <X size={16} /> {t("app.cancel")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <ConfirmDialog
         open={deleteOpen}
