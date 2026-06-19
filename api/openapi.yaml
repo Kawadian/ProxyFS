@@ -1126,7 +1126,8 @@ paths:
   /backup:
     post:
       tags: [Backup]
-      summary: Create backup
+      summary: Create node backup
+      description: Exports node definitions as human-editable YAML (no UUIDs or runtime fields).
       operationId: backup
       security:
         - sessionAuth: []
@@ -1141,7 +1142,8 @@ paths:
   /backup/restore:
     post:
       tags: [Backup]
-      summary: Restore from backup
+      summary: Restore nodes from backup
+      description: Replaces all nodes from a YAML backup. UUIDs are generated automatically; credential and key references use names.
       operationId: restoreBackup
       security:
         - sessionAuth: []
@@ -1149,10 +1151,12 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-yaml:
             schema:
               type: string
-              format: binary
+          text/plain:
+            schema:
+              type: string
       responses:
         '204':
           description: Restored

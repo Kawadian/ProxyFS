@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -22,6 +21,7 @@ import (
 	"github.com/lxcfh/lxcfh/internal/crypto"
 	"github.com/lxcfh/lxcfh/internal/hub"
 	"github.com/lxcfh/lxcfh/internal/models"
+	"github.com/lxcfh/lxcfh/internal/nodesbackup"
 	"github.com/lxcfh/lxcfh/internal/store"
 	"github.com/lxcfh/lxcfh/internal/vfs"
 	"golang.org/x/crypto/ssh"
@@ -825,16 +825,25 @@ func (s *Services) Backup(ctx context.Context) (models.BackupResult, error) {
 	if err := os.MkdirAll(s.BackupDir, 0o755); err != nil {
 		return models.BackupResult{}, err
 	}
-	doc, err := s.ExportConfig(ctx)
+	nodes, err := s.ListNodes(ctx)
 	if err != nil {
 		return models.BackupResult{}, err
 	}
-	name := fmt.Sprintf("backup-%s.json", time.Now().UTC().Format("20060102-150405"))
+	creds, err := s.ListCredentials(ctx)
+	if err != nil {
+		return models.BackupResult{}, err
+	}
+	keys, err := s.ListSSHKeys(ctx)
+	if err != nil {
+		return models.BackupResult{}, err
+	}
+	doc := nodesbackup.BuildDocument(nodes, creds, keys)
+	data, err := nodesbackup.Marshal(doc)
+	if err != nil {
+		return models.BackupResult{}, err
+	}
+	name := fmt.Sprintf("backup-%s.yaml", time.Now().UTC().Format("20060102-150405"))
 	path := filepath.Join(s.BackupDir, name)
-	data, err := json.Marshal(doc)
-	if err != nil {
-		return models.BackupResult{}, err
-	}
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return models.BackupResult{}, err
 	}
@@ -843,11 +852,120 @@ func (s *Services) Backup(ctx context.Context) (models.BackupResult, error) {
 }
 
 func (s *Services) Restore(ctx context.Context, data []byte) error {
-	var doc models.ConfigDocument
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return fmt.Errorf("%w: invalid backup", ErrInvalidInput)
+	doc, err := nodesbackup.Parse(data)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
-	return s.Store.ReplaceAllConfig(ctx, doc)
+	result := nodesbackup.Validate(doc)
+	if !result.Valid {
+		return fmt.Errorf("%w: %v", store.ErrConflict, result.Errors)
+	}
+	return s.restoreNodesBackup(ctx, doc.Nodes)
+}
+
+func (s *Services) restoreNodesBackup(ctx context.Context, specs []models.NodeSpec) error {
+	creds, err := s.ListCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	keys, err := s.ListSSHKeys(ctx)
+	if err != nil {
+		return err
+	}
+	credByName := make(map[string]string, len(creds))
+	for _, c := range creds {
+		credByName[c.Name] = c.ID
+	}
+	keyByName := make(map[string]string, len(keys))
+	for _, k := range keys {
+		keyByName[k.Name] = k.ID
+	}
+
+	settings, err := s.Store.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+
+	existing, err := s.ListNodes(ctx)
+	if err != nil {
+		return err
+	}
+	existingByName := make(map[string]models.Node, len(existing))
+	for _, n := range existing {
+		existingByName[n.Name] = n
+	}
+
+	seen := make(map[string]bool, len(specs))
+	for _, spec := range specs {
+		seen[spec.Name] = true
+
+		port := spec.Port
+		if port == 0 {
+			port = settings.DefaultNodePort
+		}
+		enabled := true
+		if spec.Enabled != nil {
+			enabled = *spec.Enabled
+		}
+
+		credID := ""
+		if spec.Credential != "" {
+			id, ok := credByName[spec.Credential]
+			if !ok {
+				return fmt.Errorf("%w: credential not found: %s", ErrInvalidInput, spec.Credential)
+			}
+			credID = id
+		}
+		keyID := ""
+		if spec.Key != "" {
+			id, ok := keyByName[spec.Key]
+			if !ok {
+				return fmt.Errorf("%w: key not found: %s", ErrInvalidInput, spec.Key)
+			}
+			keyID = id
+		}
+
+		if current, ok := existingByName[spec.Name]; ok {
+			if spec.Enabled == nil {
+				enabled = current.Enabled
+			}
+			current.Host = spec.Host
+			current.Port = port
+			current.Username = spec.Username
+			current.CredentialID = credID
+			current.KeyID = keyID
+			current.Labels = spec.Labels
+			current.Enabled = enabled
+			if _, err := s.Store.UpdateNode(ctx, current.ID, current); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if _, err := s.CreateNode(ctx, models.Node{
+			Name:         spec.Name,
+			Host:         spec.Host,
+			Port:         port,
+			Username:     spec.Username,
+			CredentialID: credID,
+			KeyID:        keyID,
+			Labels:       spec.Labels,
+			Enabled:      enabled,
+		}); err != nil {
+			return err
+		}
+	}
+
+	for name, node := range existingByName {
+		if seen[name] {
+			continue
+		}
+		if err := s.DeleteNode(ctx, node.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func HashToken(token string) string {
