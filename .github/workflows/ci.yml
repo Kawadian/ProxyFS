@@ -32,6 +32,9 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      - name: Embed frontend (required for go:embed)
+        run: make embed-frontend
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:

@@ -1,7 +1,8 @@
 # Binaries & build artifacts
 /bin/
 /dist/
-/cmd/lxcfh/static/
+/cmd/lxcfh/static/**
+!/cmd/lxcfh/static/index.html
 /web/dist/
 /coverage/
 *.out
