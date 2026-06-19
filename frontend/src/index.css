@@ -52,6 +52,7 @@ body,
 }
 
 body {
+  overflow-x: hidden;
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
@@ -91,6 +92,8 @@ textarea {
 .app-layout {
   display: flex;
   min-height: 100%;
+  width: 100%;
+  overflow-x: clip;
 }
 
 .sidebar {
@@ -172,13 +175,15 @@ textarea {
 }
 
 .top-header {
-  height: var(--header-height);
+  min-height: var(--header-height);
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
+  padding: 0.5rem 1.5rem;
+  gap: 0.75rem;
+  min-width: 0;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -189,6 +194,7 @@ textarea {
   padding: 1.5rem;
   max-width: 1400px;
   width: 100%;
+  min-width: 0;
 }
 
 .page-title {
@@ -206,6 +212,8 @@ textarea {
 }
 
 .card-header {
+  min-width: 0;
+  flex-wrap: wrap;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -216,6 +224,7 @@ textarea {
 
 .card-body {
   padding: 1.25rem;
+  min-width: 0;
 }
 
 .card-title {
@@ -301,12 +310,13 @@ textarea {
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 1rem;
 }
 
 /* Buttons */
 .btn {
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -375,7 +385,9 @@ textarea {
 
 /* Table */
 .table-wrap {
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
@@ -474,9 +486,14 @@ textarea {
   flex-wrap: wrap;
   margin-bottom: 1rem;
   font-size: 0.875rem;
+  min-width: 0;
 }
 
 .breadcrumb-item {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-muted);
   cursor: pointer;
   background: none;
@@ -498,10 +515,12 @@ textarea {
 .file-grid {
   display: grid;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .file-item {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 0.875rem;
@@ -539,10 +558,13 @@ textarea {
 .file-size {
   font-size: 0.8rem;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .file-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.25rem;
   opacity: 0;
   transition: opacity 0.15s;
@@ -713,6 +735,16 @@ textarea {
     display: inline-flex;
   }
 
+  .top-header {
+    padding: 0.5rem 1rem;
+    flex-wrap: wrap;
+  }
+
+  .top-header > .flex {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
   .page-content {
     padding: 1rem;
   }
@@ -724,9 +756,33 @@ textarea {
   .file-actions {
     opacity: 1;
   }
+
+  .dialog-actions {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 480px) {
+  .card-header,
+  .card-body {
+    padding: 1rem;
+  }
+
+  .file-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .file-actions {
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    padding-left: 1.75rem;
+  }
+
+  .dialog-actions .btn {
+    flex: 1 1 auto;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -736,6 +792,7 @@ textarea {
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
 .items-center { align-items: center; }
+.flex-wrap { flex-wrap: wrap; }
 .justify-between { justify-content: space-between; }
 .gap-1 { gap: 0.25rem; }
 .gap-2 { gap: 0.5rem; }

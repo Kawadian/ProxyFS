@@ -162,7 +162,6 @@ export function FilesPage() {
             <Select
               value={nodeId}
               onChange={(e) => { setNodeId(e.target.value); setCurrentPath(""); setSelected(null); }}
-              style={{ minWidth: 200 }}
             >
               <option value="">{t("files.selectNode")}</option>
               {(nodes ?? []).filter((n) => n.enabled).map((n) => (
@@ -171,7 +170,7 @@ export function FilesPage() {
             </Select>
           </FormGroup>
           {canWrite && nodeId && (
-            <div className="flex gap-2" style={{ marginTop: "auto" }}>
+            <div className="flex gap-2 flex-wrap" style={{ marginTop: "auto" }}>
               <Button variant="secondary" size="sm" onClick={() => { setInputValue(""); setMkdirOpen(true); }}>
                 <FolderPlus size={16} /> {t("files.newFolder")}
               </Button>
