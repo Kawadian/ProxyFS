@@ -20,6 +20,14 @@ type fsRenameRequest struct {
 	To     string `json:"to"`
 }
 
+type fsCopyMoveRequest struct {
+	SourceNodeID string `json:"source_node_id"`
+	SourcePath   string `json:"source_path"`
+	DestNodeID   string `json:"dest_node_id"`
+	DestPath     string `json:"dest_path"`
+	Mode         string `json:"mode"`
+}
+
 type fsTextWriteRequest struct {
 	NodeID  string `json:"node_id"`
 	Path    string `json:"path"`
@@ -79,6 +87,18 @@ func (h *Handler) FSRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Services.Rename(r.Context(), req.NodeID, req.From, req.To); h.mapError(w, r, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) FSCopyMove(w http.ResponseWriter, r *http.Request) {
+	var req fsCopyMoveRequest
+	if err := httputil.DecodeJSON(r, &req); err != nil {
+		httputil.WriteProblem(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	if err := h.Services.CopyMovePath(r.Context(), req.SourceNodeID, req.SourcePath, req.DestNodeID, req.DestPath, req.Mode); h.mapError(w, r, err) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

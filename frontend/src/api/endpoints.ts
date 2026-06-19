@@ -164,6 +164,17 @@ export const fsApi = {
       method: "PUT",
       body: JSON.stringify({ node_id: nodeId, path, content }),
     }),
+  copyMove: (data: {
+    source_node_id: string;
+    source_path: string;
+    dest_node_id: string;
+    dest_path: string;
+    mode: "copy" | "move";
+  }) =>
+    apiFetch<void>("/fs/copy-move", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 export const transfersApi = {

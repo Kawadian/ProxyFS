@@ -12,10 +12,12 @@ import {
   Trash2,
   Copy,
   Move,
+  ClipboardPaste,
+  X,
 } from "lucide-react";
-import { nodesApi, fsApi, transfersApi, uploadFile } from "@/api/endpoints";
+import { nodesApi, fsApi, uploadFile } from "@/api/endpoints";
 import { Button } from "@/components/ui/Button";
-import { FormGroup, Input, Select } from "@/components/ui/Input";
+import { FormGroup, Input } from "@/components/ui/Input";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { LoadingSpinner, EmptyState, formatBytes } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
@@ -33,13 +35,13 @@ export function FilesPage() {
   const [currentPath, setCurrentPath] = useState("");
   const [selected, setSelected] = useState<FileEntry | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [copyMoveOpen, setCopyMoveOpen] = useState<"copy" | "move" | null>(null);
+  const [clipboard, setClipboard] = useState<{ entry: FileEntry; nodeId: string; nodeName: string; path: string; mode: "copy" | "move" } | null>(null);
   const [mkdirOpen, setMkdirOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const { data: nodes } = useQuery({
+  const { data: nodes, isLoading: nodesLoading } = useQuery({
     queryKey: ["nodes"],
     queryFn: nodesApi.list,
   });
@@ -50,7 +52,19 @@ export function FilesPage() {
     enabled: !!nodeId,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["fs", nodeId] });
+  const enabledNodes = (nodes ?? []).filter((n) => n.enabled);
+  const currentNode = enabledNodes.find((n) => n.id === nodeId);
+  const rootEntries: FileEntry[] = enabledNodes.map((n) => ({
+    name: n.name,
+    path: n.id,
+    is_dir: true,
+    size: 0,
+    mode: "drwxr-xr-x",
+    mod_time: n.last_ping_at ?? n.updated_at,
+  }));
+  const visibleEntries = nodeId ? (files ?? []) : rootEntries;
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["fs"] });
 
   const mkdirMutation = useMutation({
     mutationFn: (name: string) => {
@@ -83,24 +97,21 @@ export function FilesPage() {
     onError: (e: Error) => toast(t("app.error"), e.message, "error"),
   });
 
-  const transferMutation = useMutation({
-    mutationFn: async ({ destPath, mode }: { destPath: string; mode: "copy" | "move" }) => {
-      if (!selected) throw new Error("No selection");
-      const source = currentPath ? `${currentPath}/${selected.name}` : selected.name;
-      await transfersApi.create({
-        node_id: nodeId,
-        source_path: source,
+  const pasteMutation = useMutation({
+    mutationFn: async () => {
+      if (!clipboard || !nodeId) throw new Error("No destination");
+      const destPath = currentPath ? `${currentPath}/${clipboard.entry.name}` : clipboard.entry.name;
+      await fsApi.copyMove({
+        source_node_id: clipboard.nodeId,
+        source_path: clipboard.path,
+        dest_node_id: nodeId,
         dest_path: destPath,
-        direction: mode,
+        mode: clipboard.mode,
       });
-      if (mode === "move") {
-        await fsApi.delete(nodeId, source);
-      }
     },
     onSuccess: () => {
       invalidate();
-      setCopyMoveOpen(null);
-      queryClient.invalidateQueries({ queryKey: ["transfers"] });
+      setClipboard(null);
       toast(t("app.success"), undefined, "success");
     },
     onError: (e: Error) => toast(t("app.error"), e.message, "error"),
@@ -109,7 +120,10 @@ export function FilesPage() {
   const pathParts = currentPath ? currentPath.split("/").filter(Boolean) : [];
 
   const navigateTo = (index: number) => {
-    if (index < 0) {
+    if (index < -1) {
+      setNodeId("");
+      setCurrentPath("");
+    } else if (index < 0) {
       setCurrentPath("");
     } else {
       setCurrentPath(pathParts.slice(0, index + 1).join("/"));
@@ -119,6 +133,12 @@ export function FilesPage() {
 
   const openEntry = (entry: FileEntry) => {
     if (entry.is_dir) {
+      if (!nodeId) {
+        setNodeId(entry.path);
+        setCurrentPath("");
+        setSelected(null);
+        return;
+      }
       setCurrentPath(entry.path);
       setSelected(null);
     } else {
@@ -158,17 +178,10 @@ export function FilesPage() {
 
       <div className="card mb-4">
         <div className="card-body flex items-center gap-4 flex-wrap">
-          <FormGroup label={t("files.selectNode")}>
-            <Select
-              value={nodeId}
-              onChange={(e) => { setNodeId(e.target.value); setCurrentPath(""); setSelected(null); }}
-            >
-              <option value="">{t("files.selectNode")}</option>
-              {(nodes ?? []).filter((n) => n.enabled).map((n) => (
-                <option key={n.id} value={n.id}>{n.name}</option>
-              ))}
-            </Select>
-          </FormGroup>
+          <div>
+            <p className="text-sm text-muted">{nodeId ? currentNode?.name : t("files.rootHint")}</p>
+            <p className="text-sm">{nodeId ? t("files.nodeRootHint") : t("files.openNodeHint")}</p>
+          </div>
           {canWrite && nodeId && (
             <div className="flex gap-2 flex-wrap" style={{ marginTop: "auto" }}>
               <Button variant="secondary" size="sm" onClick={() => { setInputValue(""); setMkdirOpen(true); }}>
@@ -191,12 +204,19 @@ export function FilesPage() {
         )}
       </div>
 
-      {nodeId && (
-        <>
+      <>
           <nav className="breadcrumb" aria-label="Breadcrumb">
-            <button type="button" className="breadcrumb-item" onClick={() => navigateTo(-1)}>
+            <button type="button" className="breadcrumb-item" onClick={() => navigateTo(-2)}>
               /
             </button>
+            {nodeId && (
+              <span className="flex items-center">
+                <ChevronRight size={14} className="breadcrumb-sep" />
+                <button type="button" className="breadcrumb-item" onClick={() => navigateTo(-1)}>
+                  {currentNode?.name ?? nodeId}
+                </button>
+              </span>
+            )}
             {pathParts.map((part, i) => (
               <span key={i} className="flex items-center">
                 <ChevronRight size={14} className="breadcrumb-sep" />
@@ -208,13 +228,13 @@ export function FilesPage() {
           </nav>
 
           <div className="card">
-            {isLoading ? (
+            {isLoading || (!nodeId && nodesLoading) ? (
               <LoadingSpinner />
-            ) : (files ?? []).length === 0 ? (
+            ) : visibleEntries.length === 0 ? (
               <EmptyState icon={<Folder size={48} />} message={t("files.empty")} />
             ) : (
               <div className="file-grid" style={{ padding: "0.5rem" }}>
-                {(files ?? []).map((entry) => (
+                {visibleEntries.map((entry) => (
                   <div
                     key={entry.path}
                     className={`file-item ${selected?.path === entry.path ? "selected" : ""}`}
@@ -237,20 +257,20 @@ export function FilesPage() {
                     </div>
                     {selected?.path === entry.path && (
                       <div className="file-actions" onClick={(e) => e.stopPropagation()}>
-                        {!entry.is_dir && (
+                        {nodeId && !entry.is_dir && (
                           <Button variant="ghost" size="icon" onClick={handleDownload} aria-label={t("app.download")}>
                             <Download size={16} />
                           </Button>
                         )}
-                        {canWrite && (
+                        {canWrite && nodeId && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => { setInputValue(entry.name); setRenameOpen(true); }} aria-label={t("app.rename")}>
                               <Pencil size={16} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setInputValue(""); setCopyMoveOpen("copy"); }} aria-label={t("app.copy")}>
+                            <Button variant="ghost" size="icon" onClick={() => setClipboard({ entry, nodeId, nodeName: currentNode?.name ?? nodeId, path: entry.path, mode: "copy" })} aria-label={t("app.copy")}>
                               <Copy size={16} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setInputValue(""); setCopyMoveOpen("move"); }} aria-label={t("app.move")}>
+                            <Button variant="ghost" size="icon" onClick={() => setClipboard({ entry, nodeId, nodeName: currentNode?.name ?? nodeId, path: entry.path, mode: "move" })} aria-label={t("app.move")}>
                               <Move size={16} />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)} aria-label={t("app.delete")}>
@@ -266,7 +286,6 @@ export function FilesPage() {
             )}
           </div>
         </>
-      )}
 
       <Modal open={mkdirOpen} onOpenChange={setMkdirOpen} title={t("files.newFolder")}>
         <FormGroup label={t("files.folderName")}>
@@ -292,24 +311,29 @@ export function FilesPage() {
         </div>
       </Modal>
 
-      <Modal
-        open={!!copyMoveOpen}
-        onOpenChange={() => setCopyMoveOpen(null)}
-        title={copyMoveOpen === "copy" ? t("app.copy") : t("app.move")}
-      >
-        <FormGroup label={copyMoveOpen === "copy" ? t("files.copyTo") : t("files.moveTo")}>
-          <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="/path/to/destination" autoFocus />
-        </FormGroup>
-        <div className="dialog-actions">
-          <Button variant="secondary" onClick={() => setCopyMoveOpen(null)}>{t("app.cancel")}</Button>
-          <Button
-            onClick={() => copyMoveOpen && transferMutation.mutate({ destPath: inputValue, mode: copyMoveOpen })}
-            disabled={!inputValue || transferMutation.isPending}
-          >
-            {t("app.confirm")}
-          </Button>
+      {clipboard && (
+        <div className="card mb-4">
+          <div className="card-body flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <strong>{clipboard.mode === "copy" ? t("app.copy") : t("app.move")}: {clipboard.entry.name}</strong>
+              <p className="text-sm text-muted">{clipboard.nodeName} / {clipboard.path}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => pasteMutation.mutate()}
+                disabled={!nodeId || pasteMutation.isPending}
+                title={!nodeId ? t("files.chooseDestination") : undefined}
+              >
+                <ClipboardPaste size={16} /> {t("files.pasteHere")}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setClipboard(null)}>
+                <X size={16} /> {t("app.cancel")}
+              </Button>
+            </div>
+          </div>
         </div>
-      </Modal>
+      )}
 
       <ConfirmDialog
         open={deleteOpen}
