@@ -12,6 +12,20 @@ docker compose up -d --build
 
 Open http://localhost:8080 and complete initial setup.
 
+For a clean Docker start (rebuilds images and clears volumes when UI looks stale):
+
+```bash
+./start.sh -r
+```
+
+Normal start/stop:
+
+```bash
+./start.sh
+./stop.sh
+./stop.sh -r   # also remove images and volumes
+```
+
 ## Ports
 
 | Service | Port | Path |
