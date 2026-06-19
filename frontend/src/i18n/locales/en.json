@@ -101,7 +101,9 @@
     "openNodeHint": "Open a node folder to browse its files.",
     "nodeRootHint": "Use the breadcrumb to return to all connected nodes.",
     "pasteHere": "Paste here",
-    "chooseDestination": "Open a destination node first."
+    "chooseDestination": "Open a destination node first.",
+    "clipboardCopy": "Copy: {{name}}",
+    "clipboardMove": "Move: {{name}}"
   },
   "nodes": {
     "title": "Nodes",
