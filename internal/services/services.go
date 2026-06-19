@@ -40,6 +40,7 @@ type Services struct {
 	VFS            *vfs.VirtualFS
 	VFSManager     *hub.VFSManager
 	MasterKey      []byte
+	SMBEnabled     bool
 	OnNodesChanged func(ctx context.Context)
 }
 
@@ -79,7 +80,11 @@ func (s *Services) Setup(ctx context.Context, username, password, displayName st
 		return models.User{}, models.Session{}, err
 	}
 	sess, err := s.createSession(ctx, user.ID)
-	return user, sess, err
+	if err != nil {
+		return models.User{}, models.Session{}, err
+	}
+	s.requestSambaSync(ctx, username, password)
+	return user, sess, nil
 }
 
 func (s *Services) Login(ctx context.Context, username, password string) (models.User, models.Session, error) {
@@ -164,7 +169,12 @@ func (s *Services) CreateUser(ctx context.Context, username, password, displayNa
 	if err != nil {
 		return models.User{}, err
 	}
-	return s.Store.CreateUser(ctx, username, displayName, email, hash, role)
+	user, err := s.Store.CreateUser(ctx, username, displayName, email, hash, role)
+	if err != nil {
+		return models.User{}, err
+	}
+	s.requestSambaSync(ctx, username, password)
+	return user, nil
 }
 
 func (s *Services) GetUser(ctx context.Context, id string) (models.User, error) {
@@ -172,22 +182,53 @@ func (s *Services) GetUser(ctx context.Context, id string) (models.User, error) 
 }
 
 func (s *Services) UpdateUser(ctx context.Context, id string, displayName, email *string, role *models.Role, enabled *bool) (models.User, error) {
-	return s.Store.UpdateUser(ctx, id, displayName, email, role, enabled)
+	user, err := s.Store.UpdateUser(ctx, id, displayName, email, role, enabled)
+	if err != nil {
+		return models.User{}, err
+	}
+	s.requestSambaSync(ctx, user.Username, "")
+	return user, nil
 }
 
 func (s *Services) DeleteUser(ctx context.Context, id string) error {
-	return s.Store.DeleteUser(ctx, id)
+	user, err := s.Store.GetUser(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.Store.DeleteUser(ctx, id); err != nil {
+		return err
+	}
+	s.requestSambaSync(ctx, user.Username, "")
+	return nil
 }
 
 func (s *Services) ChangePassword(ctx context.Context, id, password string) error {
 	if password == "" {
 		return ErrInvalidInput
 	}
+	user, err := s.Store.GetUser(ctx, id)
+	if err != nil {
+		return err
+	}
 	hash, err := crypto.HashPassword(password)
 	if err != nil {
 		return err
 	}
-	return s.Store.UpdateUserPassword(ctx, id, hash)
+	if err := s.Store.UpdateUserPassword(ctx, id, hash); err != nil {
+		return err
+	}
+	s.requestSambaSync(ctx, user.Username, password)
+	return nil
+}
+
+func (s *Services) requestSambaSync(ctx context.Context, username, password string) {
+	if !s.SMBEnabled {
+		return
+	}
+	if username != "" && password != "" {
+		_ = s.Store.SetSambaPendingPassword(ctx, username, password)
+	}
+	_ = s.Store.BumpSambaSyncNonce(ctx)
 }
 
 func (s *Services) ListUserSSHKeys(ctx context.Context, userID string) ([]models.UserSSHKey, error) {

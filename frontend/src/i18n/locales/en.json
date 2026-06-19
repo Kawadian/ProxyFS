@@ -44,6 +44,7 @@
     "keys": "Key Vault",
     "users": "Users",
     "transfers": "Transfers",
+    "profile": "Profile",
     "config": "YAML Config",
     "settings": "Settings",
     "backup": "Backup"
@@ -145,12 +146,23 @@
     "password": "Password",
     "changePassword": "Change password",
     "sshKeys": "SSH keys",
+    "sshKeysFor": "SSH keys — {{name}}",
+    "sshKeysHint": "Public keys registered here can authenticate to the hub via SFTP for user {{username}}.",
+    "addSSHKey": "Add public key",
+    "addedAt": "Added",
+    "noSSHKeys": "No SSH keys registered",
+    "deleteSSHKeyConfirm": "Delete SSH key \"{{name}}\"?",
     "deleteConfirm": "Delete user \"{{name}}\"?",
     "roles": {
       "admin": "Admin",
       "operator": "Operator",
       "viewer": "Viewer"
     }
+  },
+  "profile": {
+    "title": "My profile",
+    "account": "Account",
+    "sshKeysDescription": "Register SSH public keys to connect to the hub via SFTP without a password."
   },
   "transfers": {
     "title": "Transfers",

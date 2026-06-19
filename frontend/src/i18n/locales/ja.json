@@ -44,6 +44,7 @@
     "keys": "キー保管庫",
     "users": "ユーザー",
     "transfers": "転送",
+    "profile": "プロフィール",
     "config": "YAML設定",
     "settings": "設定",
     "backup": "バックアップ"
@@ -145,12 +146,23 @@
     "password": "パスワード",
     "changePassword": "パスワード変更",
     "sshKeys": "SSHキー",
+    "sshKeysFor": "SSHキー — {{name}}",
+    "sshKeysHint": "ここに登録した公開鍵で、ユーザー {{username}} としてハブへ SFTP 接続できます。",
+    "addSSHKey": "公開鍵を追加",
+    "addedAt": "登録日",
+    "noSSHKeys": "SSHキーは登録されていません",
+    "deleteSSHKeyConfirm": "SSHキー「{{name}}」を削除しますか？",
     "deleteConfirm": "ユーザー「{{name}}」を削除しますか？",
     "roles": {
       "admin": "管理者",
       "operator": "オペレーター",
       "viewer": "閲覧者"
     }
+  },
+  "profile": {
+    "title": "マイプロフィール",
+    "account": "アカウント",
+    "sshKeysDescription": "SSH公開鍵を登録すると、パスワードなしでハブへ SFTP 接続できます。"
   },
   "transfers": {
     "title": "転送",

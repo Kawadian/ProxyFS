@@ -71,6 +71,17 @@ func NewSyncer(db *sql.DB, cfg Config, logger *slog.Logger) *Syncer {
 
 // SyncAll reconciles all enabled Hub users with Samba.
 func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]string) (*SyncResult, error) {
+	if plaintextPasswords == nil {
+		plaintextPasswords = make(map[string]string)
+	}
+	if pending, err := s.loadPendingPasswords(ctx); err != nil {
+		return nil, err
+	} else {
+		for k, v := range pending {
+			plaintextPasswords[k] = v
+		}
+	}
+
 	users, err := s.listUsers(ctx)
 	if err != nil {
 		return nil, err
@@ -120,6 +131,7 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 				return result, fmt.Errorf("insert samba account %s: %w", u.Username, err)
 			}
 			s.logAction(ctx, u.Username, "create", "ok", "")
+			_ = s.clearPendingPassword(ctx, u.Username)
 			result.Created++
 		default:
 			if err != nil {
@@ -136,6 +148,7 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 				return result, fmt.Errorf("update samba account %s: %w", u.Username, err)
 			}
 			s.logAction(ctx, u.Username, "update", "ok", "")
+			_ = s.clearPendingPassword(ctx, u.Username)
 			result.Updated++
 		}
 	}
@@ -171,6 +184,28 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 	committed = true
 	stack = nil
 	return result, nil
+}
+
+func (s *Syncer) loadPendingPasswords(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT username, password FROM samba_pending_passwords`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]string)
+	for rows.Next() {
+		var username, password string
+		if err := rows.Scan(&username, &password); err != nil {
+			return nil, err
+		}
+		out[username] = password
+	}
+	return out, rows.Err()
+}
+
+func (s *Syncer) clearPendingPassword(ctx context.Context, username string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM samba_pending_passwords WHERE username = ?`, username)
+	return err
 }
 
 func (s *Syncer) listUsers(ctx context.Context) ([]UserRecord, error) {

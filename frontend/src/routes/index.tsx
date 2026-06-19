@@ -10,6 +10,7 @@ import { NodeDetailPage } from "@/pages/NodeDetailPage";
 import { CredentialsPage } from "@/pages/CredentialsPage";
 import { KeysPage } from "@/pages/KeysPage";
 import { UsersPage } from "@/pages/UsersPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 import { TransfersPage } from "@/pages/TransfersPage";
 import { ConfigPage } from "@/pages/ConfigPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -34,6 +35,7 @@ export function AppRoutes() {
             <Route path="nodes" element={<NodesPage />} />
             <Route path="nodes/:id" element={<NodeDetailPage />} />
             <Route path="transfers" element={<TransfersPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
         </Route>
 

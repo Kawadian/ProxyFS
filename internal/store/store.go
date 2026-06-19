@@ -177,6 +177,9 @@ CREATE TABLE IF NOT EXISTS health_checks (
 	if err := s.runMigrations(); err != nil {
 		return err
 	}
+	if err := s.ensureSambaTables(); err != nil {
+		return err
+	}
 	return s.ensureDefaultSettings()
 }
 
