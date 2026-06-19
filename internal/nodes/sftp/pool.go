@@ -8,7 +8,7 @@ import (
 
 var ErrPoolClosed = errors.New("connection pool closed")
 
-type factoryFunc func() (*pooledConn, error)
+type factoryFunc func(context.Context) (*pooledConn, error)
 
 type pool struct {
 	size    int
@@ -46,7 +46,7 @@ func (p *pool) Get(ctx context.Context) (*pooledConn, error) {
 		if p.active < p.size {
 			p.active++
 			p.mu.Unlock()
-			conn, err := p.factory()
+			conn, err := p.factory(ctx)
 			p.mu.Lock()
 			if err != nil {
 				p.active--
