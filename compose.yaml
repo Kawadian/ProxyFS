@@ -1,5 +1,5 @@
 # LXC File Hub (lxcfh) — base Compose stack
-# Hub + Samba sidecar share the lxcfh-fuse volume for SMB export.
+# Protocol services (SFTP / WebDAV / SMB) are enabled from the Web UI.
 # Enable test-node with: docker compose --profile test up
 
 name: lxcfh
@@ -11,8 +11,7 @@ x-hub-env: &hub-env
   LXCFH_DB_PATH: /var/lib/lxcfh/lxcfh.db
   LXCFH_MASTER_KEY_PATH: /run/secrets/master.key
   LXCFH_FUSE_MOUNT: /fuse-mount
-  LXCFH_FUSE_BACKEND: /fuse-share
-  SMB_ENABLED: ${SMB_ENABLED:-false}
+  SMB_SHARE_NAME: ${SMB_SHARE_NAME:-lxcfh}
 
 services:
   hub:
@@ -31,9 +30,10 @@ services:
     ports:
       - "${LXCFH_HOST_PORT:-8080}:${LXCFH_BIND_PORT:-8080}"
       - "${LXCFH_SFTP_PORT:-2022}:2022"
+      - "${SMB_HOST_PORT:-445}:445"
+      - "${SMB_NBT_PORT:-139}:139"
     volumes:
       - lxcfh-data:/var/lib/lxcfh
-      - lxcfh-fuse:/fuse-share
       - ./secrets/dev/master.key:/run/secrets/master.key:ro
     devices:
       - /dev/fuse:/dev/fuse
@@ -47,32 +47,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 25s
-    networks:
-      - lxcfh
-
-  samba:
-    profiles:
-      - smb
-      - full
-    build:
-      context: .
-      dockerfile: Dockerfile.samba
-    image: ${LXCFH_SAMBA_IMAGE:-lxcfh/samba:latest}
-    container_name: lxcfh-samba
-    restart: unless-stopped
-    environment:
-      LXCFH_DB_PATH: /var/lib/lxcfh/lxcfh.db
-      SMB_SHARE_NAME: ${SMB_SHARE_NAME:-lxcfh}
-      SMB_SHARE_PATH: /fuse-share
-    ports:
-      - "${SMB_HOST_PORT:-445}:445"
-      - "${SMB_NBT_PORT:-139}:139"
-    volumes:
-      - lxcfh-fuse:/fuse-share
-      - lxcfh-data:/var/lib/lxcfh:ro
-    depends_on:
-      hub:
-        condition: service_healthy
     networks:
       - lxcfh
 
@@ -100,7 +74,6 @@ services:
 
 volumes:
   lxcfh-data:
-  lxcfh-fuse:
   test-node-data:
   test-node-uploads:
 

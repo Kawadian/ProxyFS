@@ -9,22 +9,25 @@ import (
 	"github.com/go-chi/httprate"
 	"github.com/lxcfh/lxcfh/internal/api/handlers"
 	"github.com/lxcfh/lxcfh/internal/models"
+	"github.com/lxcfh/lxcfh/internal/runtime"
 	"github.com/lxcfh/lxcfh/internal/services"
 	"github.com/lxcfh/lxcfh/internal/yamlconfig"
 )
 
 type Server struct {
-	svc    *services.Services
-	h      *handlers.Handler
-	router chi.Router
+	svc       *services.Services
+	h         *handlers.Handler
+	protocols *runtime.ProtocolManager
+	router    chi.Router
 }
 
-func NewServer(svc *services.Services) *Server {
+func NewServer(svc *services.Services, protocols *runtime.ProtocolManager) *Server {
 	h := &handlers.Handler{
-		Services: svc,
-		YAML:     yamlconfig.NewManager(svc),
+		Services:  svc,
+		YAML:      yamlconfig.NewManager(svc),
+		Protocols: protocols,
 	}
-	s := &Server{svc: svc, h: h}
+	s := &Server{svc: svc, h: h, protocols: protocols}
 	s.router = s.buildRouter()
 	return s
 }
@@ -153,6 +156,9 @@ func (s *Server) buildRouter() chi.Router {
 
 			r.With(RequireRoles(models.RoleAdmin)).Get("/settings", s.h.GetSettings)
 			r.With(RequireRoles(models.RoleAdmin)).Patch("/settings", s.h.PatchSettings)
+
+			r.With(RequireRoles(models.RoleAdmin)).Get("/protocols", s.h.GetProtocols)
+			r.With(RequireRoles(models.RoleAdmin)).Patch("/protocols/{name}", s.h.PatchProtocol)
 
 			r.With(RequireRoles(models.RoleAdmin)).Post("/backup", s.h.Backup)
 			r.With(RequireRoles(models.RoleAdmin)).Post("/backup/restore", s.h.RestoreBackup)

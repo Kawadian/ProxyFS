@@ -42,6 +42,7 @@
     "nodes": "Nodes",
     "credentials": "Credentials",
     "keys": "Key Vault",
+    "protocols": "Protocols",
     "users": "Users",
     "transfers": "Transfers",
     "profile": "Profile",
@@ -157,6 +158,20 @@
       "admin": "Admin",
       "operator": "Operator",
       "viewer": "Viewer"
+    }
+  },
+  "protocols": {
+    "title": "Protocols",
+    "description": "Start and stop hub protocol services. No container restart or .env changes required.",
+    "enabled": "Enabled",
+    "running": "Running",
+    "path": "Path",
+    "start": "Start",
+    "stop": "Stop",
+    "names": {
+      "sftp": "SFTP",
+      "webdav": "WebDAV",
+      "smb": "SMB"
     }
   },
   "profile": {

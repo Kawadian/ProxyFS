@@ -34,14 +34,14 @@ var (
 )
 
 type Services struct {
-	Store          *store.Store
-	BackupDir      string
-	DataDir        string
-	VFS            *vfs.VirtualFS
-	VFSManager     *hub.VFSManager
-	MasterKey      []byte
-	SMBEnabled     bool
-	OnNodesChanged func(ctx context.Context)
+	Store             *store.Store
+	BackupDir         string
+	DataDir           string
+	VFS               *vfs.VirtualFS
+	VFSManager        *hub.VFSManager
+	MasterKey         []byte
+	OnNodesChanged    func(ctx context.Context)
+	OnSettingsChanged func(ctx context.Context, settings models.Settings) error
 }
 
 func New(st *store.Store, dataDir string) *Services {
@@ -83,7 +83,7 @@ func (s *Services) Setup(ctx context.Context, username, password, displayName st
 	if err != nil {
 		return models.User{}, models.Session{}, err
 	}
-	s.requestSambaSync(ctx, username, password)
+	_ = s.requestSambaSync(ctx, username, password)
 	return user, sess, nil
 }
 
@@ -173,7 +173,7 @@ func (s *Services) CreateUser(ctx context.Context, username, password, displayNa
 	if err != nil {
 		return models.User{}, err
 	}
-	s.requestSambaSync(ctx, username, password)
+	_ = s.requestSambaSync(ctx, username, password)
 	return user, nil
 }
 
@@ -186,7 +186,7 @@ func (s *Services) UpdateUser(ctx context.Context, id string, displayName, email
 	if err != nil {
 		return models.User{}, err
 	}
-	s.requestSambaSync(ctx, user.Username, "")
+	_ = s.requestSambaSync(ctx, user.Username, "")
 	return user, nil
 }
 
@@ -198,7 +198,7 @@ func (s *Services) DeleteUser(ctx context.Context, id string) error {
 	if err := s.Store.DeleteUser(ctx, id); err != nil {
 		return err
 	}
-	s.requestSambaSync(ctx, user.Username, "")
+	_ = s.requestSambaSync(ctx, user.Username, "")
 	return nil
 }
 
@@ -217,18 +217,22 @@ func (s *Services) ChangePassword(ctx context.Context, id, password string) erro
 	if err := s.Store.UpdateUserPassword(ctx, id, hash); err != nil {
 		return err
 	}
-	s.requestSambaSync(ctx, user.Username, password)
+	_ = s.requestSambaSync(ctx, user.Username, password)
 	return nil
 }
 
-func (s *Services) requestSambaSync(ctx context.Context, username, password string) {
-	if !s.SMBEnabled {
-		return
+func (s *Services) requestSambaSync(ctx context.Context, username, password string) error {
+	settings, err := s.Store.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+	if !settings.Protocols.SMBEnabled {
+		return nil
 	}
 	if username != "" && password != "" {
 		_ = s.Store.SetSambaPendingPassword(ctx, username, password)
 	}
-	_ = s.Store.BumpSambaSyncNonce(ctx)
+	return s.Store.BumpSambaSyncNonce(ctx)
 }
 
 func (s *Services) ListUserSSHKeys(ctx context.Context, userID string) ([]models.UserSSHKey, error) {
@@ -777,8 +781,16 @@ func (s *Services) UpdateSettings(ctx context.Context, patch models.Settings) (m
 	if patch.BackupRetentionDays > 0 {
 		current.BackupRetentionDays = patch.BackupRetentionDays
 	}
+	if patch.Protocols != (models.ProtocolSettings{}) {
+		current.Protocols = patch.Protocols
+	}
 	if err := s.Store.UpdateSettings(ctx, current); err != nil {
 		return models.Settings{}, err
+	}
+	if s.OnSettingsChanged != nil {
+		if err := s.OnSettingsChanged(ctx, current); err != nil {
+			return models.Settings{}, err
+		}
 	}
 	return current, nil
 }

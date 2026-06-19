@@ -12,6 +12,20 @@ docker compose up -d --build
 
 Open http://localhost:8080 and complete initial setup.
 
+For a clean Docker start (rebuilds images and clears volumes when UI looks stale):
+
+```bash
+./start.sh -r
+```
+
+Normal start/stop:
+
+```bash
+./start.sh
+./stop.sh
+./stop.sh -r   # also remove images and volumes
+```
+
 ## Ports
 
 | Service | Port | Path |
@@ -37,11 +51,7 @@ All protocols share a common Virtual File System (VFS). Each registered node app
 
 ## SMB / FUSE mode
 
-```bash
-SMB_ENABLED=true docker compose --profile smb up -d --build
-```
-
-Hub requires `/dev/fuse` and `SYS_ADMIN` capability (no `privileged: true`). Set `SMB_ENABLED=false` to run Web/SFTP/WebDAV only.
+SMB is started and stopped from the Web UI under **Protocols** (admin). The hub image includes Samba and exports the same VirtualFS as SFTP/WebDAV. Docker requires `/dev/fuse` and `SYS_ADMIN` on the hub container (already set in `compose.yaml`).
 
 ## Test SFTP node
 

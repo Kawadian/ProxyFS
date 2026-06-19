@@ -142,14 +142,44 @@ type Upload struct {
 }
 
 type Settings struct {
-	SiteName            string `json:"site_name"`
-	SessionTimeoutMin   int    `json:"session_timeout_min"`
-	MaxUploadSizeMB     int    `json:"max_upload_size_mb"`
-	RateLimitPerMinute  int    `json:"rate_limit_per_minute"`
-	RequireReauth       bool   `json:"require_reauth"`
-	AllowRegistration   bool   `json:"allow_registration"`
-	DefaultNodePort     int    `json:"default_node_port"`
-	BackupRetentionDays int    `json:"backup_retention_days"`
+	SiteName            string           `json:"site_name"`
+	SessionTimeoutMin   int              `json:"session_timeout_min"`
+	MaxUploadSizeMB     int              `json:"max_upload_size_mb"`
+	RateLimitPerMinute  int              `json:"rate_limit_per_minute"`
+	RequireReauth       bool             `json:"require_reauth"`
+	AllowRegistration   bool             `json:"allow_registration"`
+	DefaultNodePort     int              `json:"default_node_port"`
+	BackupRetentionDays int              `json:"backup_retention_days"`
+	Protocols           ProtocolSettings `json:"protocols"`
+}
+
+// ProtocolSettings controls hub protocol services from the Web UI.
+type ProtocolSettings struct {
+	SFTPEnabled   bool `json:"sftp_enabled"`
+	WebDAVEnabled bool `json:"webdav_enabled"`
+	SMBEnabled    bool `json:"smb_enabled"`
+}
+
+// DefaultProtocolSettings matches legacy always-on SFTP/WebDAV behavior.
+func DefaultProtocolSettings() ProtocolSettings {
+	return ProtocolSettings{
+		SFTPEnabled:   true,
+		WebDAVEnabled: true,
+		SMBEnabled:    false,
+	}
+}
+
+type ProtocolStatus struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	Running bool   `json:"running"`
+	Port    int    `json:"port,omitempty"`
+	Path    string `json:"path,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+type ProtocolsOverview struct {
+	Protocols []ProtocolStatus `json:"protocols"`
 }
 
 type Dashboard struct {

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Server, ArrowLeftRight, Users, HardDrive, AlertTriangle, Activity } from "lucide-react";
-import { dashboardApi, transfersApi } from "@/api/endpoints";
+import { dashboardApi, transfersApi, protocolsApi } from "@/api/endpoints";
 import { healthCheck } from "@/api/client";
 import { LoadingSpinner, StatusBadge, formatBytes, formatDate } from "@/components/ui/Badge";
 
@@ -18,6 +18,12 @@ export function DashboardPage() {
     queryKey: ["transfers"],
     queryFn: transfersApi.list,
     refetchInterval: 10_000,
+  });
+
+  const { data: protocols } = useQuery({
+    queryKey: ["protocols"],
+    queryFn: protocolsApi.get,
+    refetchInterval: 15_000,
   });
 
   const { data: health } = useQuery({
@@ -94,16 +100,14 @@ export function DashboardPage() {
             <h2 className="card-title">{t("dashboard.protocols")}</h2>
           </div>
           <div className="card-body flex gap-4 flex-wrap">
+            {(protocols?.protocols ?? []).map((p) => (
+              <div key={p.name}>
+                <span className="text-sm text-muted">{t(`protocols.names.${p.name}`)}: </span>
+                <StatusBadge status={p.running ? "ok" : p.enabled ? "pending" : "disabled"} />
+              </div>
+            ))}
             <div>
               <span className="text-sm text-muted">{t("dashboard.api")}: </span>
-              <StatusBadge status="ok" />
-            </div>
-            <div>
-              <span className="text-sm text-muted">{t("dashboard.sftp")}: </span>
-              <StatusBadge status={health?.ready ? "ok" : "pending"} />
-            </div>
-            <div>
-              <span className="text-sm text-muted">{t("dashboard.webdav")}: </span>
               <StatusBadge status={health?.ready ? "ok" : "pending"} />
             </div>
           </div>

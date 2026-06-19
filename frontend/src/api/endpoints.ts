@@ -13,6 +13,7 @@ import type {
   Transfer,
   User,
   UserSSHKey,
+  ProtocolsOverview,
   ValidationResult,
   FileEntry,
 } from "./types";
@@ -196,6 +197,15 @@ export const configApi = {
       method: "POST",
       headers: { "Content-Type": "application/x-yaml" },
       body: yaml,
+    }),
+};
+
+export const protocolsApi = {
+  get: () => apiFetch<ProtocolsOverview>("/protocols"),
+  setEnabled: (name: string, enabled: boolean) =>
+    apiFetch<ProtocolsOverview>(`/protocols/${name}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
     }),
 };
 

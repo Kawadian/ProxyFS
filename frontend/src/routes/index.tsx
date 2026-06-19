@@ -9,6 +9,7 @@ import { NodesPage } from "@/pages/NodesPage";
 import { NodeDetailPage } from "@/pages/NodeDetailPage";
 import { CredentialsPage } from "@/pages/CredentialsPage";
 import { KeysPage } from "@/pages/KeysPage";
+import { ProtocolsPage } from "@/pages/ProtocolsPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { TransfersPage } from "@/pages/TransfersPage";
@@ -48,6 +49,7 @@ export function AppRoutes() {
         <Route element={<ProtectedRoute admin />}>
           <Route element={<AppLayout />}>
             <Route path="keys" element={<KeysPage />} />
+            <Route path="protocols" element={<ProtocolsPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="config" element={<ConfigPage />} />
             <Route path="settings" element={<SettingsPage />} />

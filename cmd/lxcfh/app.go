@@ -16,9 +16,11 @@ import (
 	"github.com/lxcfh/lxcfh/internal/config"
 	"github.com/lxcfh/lxcfh/internal/health"
 	"github.com/lxcfh/lxcfh/internal/hub"
+	"github.com/lxcfh/lxcfh/internal/models"
 	"github.com/lxcfh/lxcfh/internal/protocols/sftpserver"
 	"github.com/lxcfh/lxcfh/internal/protocols/webdav"
 	"github.com/lxcfh/lxcfh/internal/rbac"
+	"github.com/lxcfh/lxcfh/internal/runtime"
 	"github.com/lxcfh/lxcfh/internal/services"
 	"github.com/lxcfh/lxcfh/internal/store"
 	"github.com/lxcfh/lxcfh/internal/transfer"
@@ -26,17 +28,18 @@ import (
 )
 
 type runtimeApp struct {
-	cfg      *config.Config
-	store    *store.Store
-	services *services.Services
-	vfs      *vfs.VirtualFS
-	vfsMgr   *hub.VFSManager
-	api      *api.Server
-	sftp     *sftpserver.Server
-	webdav   *webdav.Server
-	transfer *transfer.Worker
-	health   *health.Checker
-	logger   *slog.Logger
+	cfg       *config.Config
+	store     *store.Store
+	services  *services.Services
+	vfs       *vfs.VirtualFS
+	vfsMgr    *hub.VFSManager
+	protocols *runtime.ProtocolManager
+	api       *api.Server
+	sftp      *sftpserver.Server
+	webdav    *webdav.Server
+	transfer  *transfer.Worker
+	health    *health.Checker
+	logger    *slog.Logger
 }
 
 func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
@@ -54,7 +57,6 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 	svc.VFS = vfsFS
 	svc.VFSManager = vfsMgr
 	svc.MasterKey = cfg.MasterKey
-	svc.SMBEnabled = cfg.SMBEnabled
 	svc.OnNodesChanged = func(ctx context.Context) {
 		if err := vfsMgr.Refresh(ctx); err != nil {
 			logger.Warn("vfs refresh failed", "error", err)
@@ -76,8 +78,6 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 		{PathPrefix: "/", Roles: []string{"guest"}, Permissions: []rbac.Permission{rbac.Read, rbac.List}},
 	})
 
-	apiSrv := api.NewServer(svc)
-
 	sftpPort := cfg.SFTPPort
 	if sftpPort == 0 {
 		sftpPort = 2022
@@ -94,21 +94,29 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 	lockStore := webdav.NewLockStore(st.DB())
 	webdavSrv := webdav.New(webdav.Config{Prefix: "/dav/", AllowGuest: false}, authSvc, vfsFS, rbacEngine, lockStore, logger)
 
+	protocolMgr := runtime.NewProtocolManager(cfg, st, sftpSrv, webdavSrv, vfsFS, authSvc, logger)
+	svc.OnSettingsChanged = func(ctx context.Context, settings models.Settings) error {
+		return protocolMgr.Apply(ctx, settings)
+	}
+
+	apiSrv := api.NewServer(svc, protocolMgr)
+
 	transferWorker := transfer.NewWorker(st.DB(), vfsFS, cfg.TransferChunkSize, cfg.TransferWorkers, logger)
 	healthChecker := health.NewChecker(st.DB(), cfg.HealthTTL)
 
 	return &runtimeApp{
-		cfg:      cfg,
-		store:    st,
-		services: svc,
-		vfs:      vfsFS,
-		vfsMgr:   vfsMgr,
-		api:      apiSrv,
-		sftp:     sftpSrv,
-		webdav:   webdavSrv,
-		transfer: transferWorker,
-		health:   healthChecker,
-		logger:   logger,
+		cfg:       cfg,
+		store:     st,
+		services:  svc,
+		vfs:       vfsFS,
+		vfsMgr:    vfsMgr,
+		protocols: protocolMgr,
+		api:       apiSrv,
+		sftp:      sftpSrv,
+		webdav:    webdavSrv,
+		transfer:  transferWorker,
+		health:    healthChecker,
+		logger:    logger,
 	}, nil
 }
 
@@ -135,9 +143,14 @@ func (a *runtimeApp) handler() http.Handler {
 }
 
 func (a *runtimeApp) run(ctx context.Context) error {
-	if err := a.sftp.Start(); err != nil {
-		return fmt.Errorf("start sftp: %w", err)
+	settings, err := a.store.GetSettings(ctx)
+	if err != nil {
+		return fmt.Errorf("load settings: %w", err)
 	}
+	if err := a.protocols.Apply(ctx, settings); err != nil {
+		a.logger.Warn("initial protocol apply", "error", err)
+	}
+
 	a.transfer.Start(ctx)
 
 	addr := a.cfg.WebAddr()
@@ -149,7 +162,7 @@ func (a *runtimeApp) run(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		a.logger.Info("hub listening", "http", addr, "sftp", a.sftp)
+		a.logger.Info("hub listening", "http", addr)
 		errCh <- srv.ListenAndServe()
 	}()
 
@@ -169,7 +182,7 @@ func (a *runtimeApp) run(ctx context.Context) error {
 	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutCtx)
-	_ = a.sftp.Stop()
+	a.protocols.Shutdown()
 	a.transfer.Stop()
 	a.vfsMgr.Close()
 	return a.store.Close()

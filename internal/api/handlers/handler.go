@@ -5,14 +5,16 @@ import (
 	"net/http"
 
 	"github.com/lxcfh/lxcfh/internal/httputil"
+	"github.com/lxcfh/lxcfh/internal/runtime"
 	"github.com/lxcfh/lxcfh/internal/services"
 	"github.com/lxcfh/lxcfh/internal/store"
 	"github.com/lxcfh/lxcfh/internal/yamlconfig"
 )
 
 type Handler struct {
-	Services *services.Services
-	YAML     *yamlconfig.Manager
+	Services  *services.Services
+	YAML      *yamlconfig.Manager
+	Protocols *runtime.ProtocolManager
 }
 
 func (h *Handler) mapError(w http.ResponseWriter, r *http.Request, err error) bool {
