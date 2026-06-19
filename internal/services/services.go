@@ -83,7 +83,7 @@ func (s *Services) Setup(ctx context.Context, username, password, displayName st
 	if err != nil {
 		return models.User{}, models.Session{}, err
 	}
-	s.requestSambaSync(ctx, username, password)
+	_ = s.requestSambaSync(ctx, username, password)
 	return user, sess, nil
 }
 
@@ -173,7 +173,7 @@ func (s *Services) CreateUser(ctx context.Context, username, password, displayNa
 	if err != nil {
 		return models.User{}, err
 	}
-	s.requestSambaSync(ctx, username, password)
+	_ = s.requestSambaSync(ctx, username, password)
 	return user, nil
 }
 
@@ -186,7 +186,7 @@ func (s *Services) UpdateUser(ctx context.Context, id string, displayName, email
 	if err != nil {
 		return models.User{}, err
 	}
-	s.requestSambaSync(ctx, user.Username, "")
+	_ = s.requestSambaSync(ctx, user.Username, "")
 	return user, nil
 }
 
@@ -198,7 +198,7 @@ func (s *Services) DeleteUser(ctx context.Context, id string) error {
 	if err := s.Store.DeleteUser(ctx, id); err != nil {
 		return err
 	}
-	s.requestSambaSync(ctx, user.Username, "")
+	_ = s.requestSambaSync(ctx, user.Username, "")
 	return nil
 }
 
@@ -217,7 +217,7 @@ func (s *Services) ChangePassword(ctx context.Context, id, password string) erro
 	if err := s.Store.UpdateUserPassword(ctx, id, hash); err != nil {
 		return err
 	}
-	s.requestSambaSync(ctx, user.Username, password)
+	_ = s.requestSambaSync(ctx, user.Username, password)
 	return nil
 }
 
