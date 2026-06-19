@@ -42,7 +42,7 @@ func Mount(mountPoint, backendDir string) error {
 	if err != nil {
 		return fmt.Errorf("fuse mount: %w", err)
 	}
-	defer server.Unmount()
+	defer func() { _ = server.Unmount() }()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

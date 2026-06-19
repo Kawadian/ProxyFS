@@ -155,9 +155,7 @@ func (h *Handler) Filecmd(r *sftp.Request) error {
 }
 
 func (h *Handler) rename(src, dst string) error {
-	if err := h.fs.Remove(h.ctx, dst); err != nil && !errors.Is(err, vfs.ErrNotFound) {
-		// destination may not exist
-	}
+	_ = h.fs.Remove(h.ctx, dst) // overwrite destination if present
 	data, err := h.fs.Open(h.ctx, src)
 	if err != nil {
 		return err

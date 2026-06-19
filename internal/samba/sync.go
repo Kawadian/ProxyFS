@@ -15,7 +15,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/lxcfh/lxcfh/internal/hub"
-	"golang.org/x/crypto/md4"
+	"golang.org/x/crypto/md4" //nolint:staticcheck // Samba NT hash requires MD4
 )
 
 // Config controls Samba user synchronization.

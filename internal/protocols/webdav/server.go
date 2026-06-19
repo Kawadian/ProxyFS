@@ -413,9 +413,7 @@ func copyPath(ctx context.Context, fs *vfs.VirtualFS, src, dst string) error {
 		return err
 	}
 	if info.IsDir {
-		if err := fs.Mkdir(ctx, dst); err != nil && !errors.Is(err, vfs.ErrPermission) {
-			// ignore exists
-		}
+		_ = fs.Mkdir(ctx, dst) // ignore if already exists
 		entries, err := fs.ReadDir(ctx, src)
 		if err != nil {
 			return err

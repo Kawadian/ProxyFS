@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +21,6 @@ var (
 
 type Store struct {
 	db *sql.DB
-	mu sync.RWMutex
 }
 
 func Open(path string) (*Store, error) {
@@ -968,7 +966,7 @@ func (s *Store) ReplaceAllConfig(ctx context.Context, doc models.ConfigDocument)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	tables := []string{"uploads", "transfers", "nodes", "credentials", "ssh_keys", "user_ssh_keys", "sessions", "users"}
 	for _, t := range tables {
