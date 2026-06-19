@@ -635,6 +635,131 @@ func (s *Services) Rename(ctx context.Context, nodeID, from, to string) error {
 	return os.Rename(src, dst)
 }
 
+func (s *Services) CopyMovePath(ctx context.Context, sourceNodeID, sourcePath, destNodeID, destPath, mode string) error {
+	if sourceNodeID == "" || sourcePath == "" || destNodeID == "" || destPath == "" {
+		return ErrInvalidInput
+	}
+	if mode != "copy" && mode != "move" {
+		return ErrInvalidInput
+	}
+	if mode == "move" && sourceNodeID == destNodeID {
+		return s.Rename(ctx, sourceNodeID, sourcePath, destPath)
+	}
+	srcNode, err := s.Store.GetNode(ctx, sourceNodeID)
+	if err != nil {
+		return err
+	}
+	dstNode, err := s.Store.GetNode(ctx, destNodeID)
+	if err != nil {
+		return err
+	}
+	if s.VFS != nil {
+		src := s.nodeVirtualPath(srcNode, sourcePath)
+		dst := s.nodeVirtualPath(dstNode, destPath)
+		if err := s.copyVirtualPath(ctx, src, dst); err != nil {
+			return err
+		}
+		if mode == "move" {
+			return s.removeVirtualRecursive(ctx, src)
+		}
+		return nil
+	}
+	src := filepath.Join(s.localNodePath(sourceNodeID), filepath.Clean("/"+sourcePath))
+	dst := filepath.Join(s.localNodePath(destNodeID), filepath.Clean("/"+destPath))
+	if err := copyLocalPath(src, dst); err != nil {
+		return err
+	}
+	if mode == "move" {
+		return os.RemoveAll(src)
+	}
+	return nil
+}
+
+func (s *Services) copyVirtualPath(ctx context.Context, src, dst string) error {
+	info, err := s.VFS.Stat(ctx, src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir {
+		if err := s.VFS.Mkdir(ctx, dst); err != nil {
+			return err
+		}
+		entries, err := s.VFS.ReadDir(ctx, src)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if err := s.copyVirtualPath(ctx, entry.Path, filepath.Join(dst, entry.Name)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	rc, err := s.VFS.Open(ctx, src)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	_, err = s.VFS.Write(ctx, dst, 0, rc)
+	return err
+}
+
+func (s *Services) removeVirtualRecursive(ctx context.Context, path string) error {
+	info, err := s.VFS.Stat(ctx, path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir {
+		entries, err := s.VFS.ReadDir(ctx, path)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if err := s.removeVirtualRecursive(ctx, entry.Path); err != nil {
+				return err
+			}
+		}
+	}
+	return s.VFS.Remove(ctx, path)
+}
+
+func copyLocalPath(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		if err := os.MkdirAll(dst, info.Mode()); err != nil {
+			return err
+		}
+		entries, err := os.ReadDir(src)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if err := copyLocalPath(filepath.Join(src, entry.Name()), filepath.Join(dst, entry.Name())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
 func (s *Services) DeletePath(ctx context.Context, nodeID, path string) error {
 	node, err := s.Store.GetNode(ctx, nodeID)
 	if err != nil {

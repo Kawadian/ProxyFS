@@ -180,6 +180,9 @@ func (b *sftpBackend) Write(ctx context.Context, nodePath string, offset int64, 
 	err := b.withClient(ctx, func(c *sftp.Client) error {
 		full := b.join(nodePath)
 		flags := os.O_CREATE | os.O_WRONLY
+		if err := c.MkdirAll(path.Dir(full)); err != nil {
+			return err
+		}
 		f, err := c.OpenFile(full, flags)
 		if err != nil {
 			return err
@@ -199,7 +202,11 @@ func (b *sftpBackend) Write(ctx context.Context, nodePath string, offset int64, 
 
 func (b *sftpBackend) Remove(ctx context.Context, nodePath string) error {
 	return b.withClient(ctx, func(c *sftp.Client) error {
-		return c.Remove(b.join(nodePath))
+		full := b.join(nodePath)
+		if err := c.Remove(full); err == nil {
+			return nil
+		}
+		return c.RemoveDirectory(full)
 	})
 }
 

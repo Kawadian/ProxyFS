@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "LXC File Hub",
+    "name": "Name",
     "loading": "Loading…",
     "save": "Save",
     "cancel": "Cancel",
@@ -12,7 +12,6 @@
     "search": "Search",
     "actions": "Actions",
     "status": "Status",
-    "name": "Name",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "yes": "Yes",
@@ -97,7 +96,12 @@
     "moveTo": "Move to path",
     "folderName": "Folder name",
     "uploading": "Uploading…",
-    "uploadProgress": "Upload progress: {{pct}}%"
+    "uploadProgress": "Upload progress: {{pct}}%",
+    "rootHint": "Connected nodes",
+    "openNodeHint": "Open a node folder to browse its files.",
+    "nodeRootHint": "Use the breadcrumb to return to all connected nodes.",
+    "pasteHere": "Paste here",
+    "chooseDestination": "Open a destination node first."
   },
   "nodes": {
     "title": "Nodes",

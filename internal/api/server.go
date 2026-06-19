@@ -123,6 +123,7 @@ func (s *Server) buildRouter() chi.Router {
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator, models.RoleViewer)).Get("/download", s.h.FSDownload)
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator)).Post("/mkdir", s.h.FSMkdir)
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator)).Post("/rename", s.h.FSRename)
+				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator)).Post("/copy-move", s.h.FSCopyMove)
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator)).Delete("/delete", s.h.FSDelete)
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator, models.RoleViewer)).Get("/text", s.h.FSReadText)
 				r.With(RequireRoles(models.RoleAdmin, models.RoleEditor, models.RoleOperator)).Put("/text", s.h.FSWriteText)

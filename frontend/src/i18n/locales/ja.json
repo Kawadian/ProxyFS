@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "LXC File Hub",
+    "name": "名前",
     "loading": "読み込み中…",
     "save": "保存",
     "cancel": "キャンセル",
@@ -12,7 +12,6 @@
     "search": "検索",
     "actions": "操作",
     "status": "状態",
-    "name": "名前",
     "enabled": "有効",
     "disabled": "無効",
     "yes": "はい",
@@ -97,7 +96,12 @@
     "moveTo": "移動先パス",
     "folderName": "フォルダ名",
     "uploading": "アップロード中…",
-    "uploadProgress": "アップロード進捗: {{pct}}%"
+    "uploadProgress": "アップロード進捗: {{pct}}%",
+    "rootHint": "接続先ノード",
+    "openNodeHint": "ノードのフォルダを開くとファイルを参照できます。",
+    "nodeRootHint": "パンくずから接続先一覧に戻れます。",
+    "pasteHere": "ここに貼り付け",
+    "chooseDestination": "先に貼り付け先ノードを開いてください。"
   },
   "nodes": {
     "title": "ノード",
