@@ -49,7 +49,7 @@ func Validate(doc models.NodesBackupDocument) models.ValidationResult {
 	return result
 }
 
-func BuildDocument(nodes []models.Node, creds []models.Credential, keys []models.SSHKey) models.NodesBackupDocument {
+func BuildDocument(nodes []models.Node, creds []models.Credential, keys []models.SSHKey, defaultNodePort int) models.NodesBackupDocument {
 	credByID := make(map[string]string, len(creds))
 	for _, c := range creds {
 		credByID[c.ID] = c.Name
@@ -64,9 +64,13 @@ func BuildDocument(nodes []models.Node, creds []models.Credential, keys []models
 		spec := models.NodeSpec{
 			Name:     n.Name,
 			Host:     n.Host,
-			Port:     n.Port,
 			Username: n.Username,
 			Labels:   n.Labels,
+		}
+		if defaultNodePort > 0 && n.Port != defaultNodePort {
+			spec.Port = n.Port
+		} else if defaultNodePort == 0 && n.Port != 0 {
+			spec.Port = n.Port
 		}
 		if n.CredentialID != "" {
 			spec.Credential = credByID[n.CredentialID]
@@ -74,8 +78,10 @@ func BuildDocument(nodes []models.Node, creds []models.Credential, keys []models
 		if n.KeyID != "" {
 			spec.Key = keyByID[n.KeyID]
 		}
-		enabled := n.Enabled
-		spec.Enabled = &enabled
+		if !n.Enabled {
+			enabled := false
+			spec.Enabled = &enabled
+		}
 		specs = append(specs, spec)
 	}
 

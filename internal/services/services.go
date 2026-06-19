@@ -837,7 +837,11 @@ func (s *Services) Backup(ctx context.Context) (models.BackupResult, error) {
 	if err != nil {
 		return models.BackupResult{}, err
 	}
-	doc := nodesbackup.BuildDocument(nodes, creds, keys)
+	settings, err := s.Store.GetSettings(ctx)
+	if err != nil {
+		return models.BackupResult{}, err
+	}
+	doc := nodesbackup.BuildDocument(nodes, creds, keys, settings.DefaultNodePort)
 	data, err := nodesbackup.Marshal(doc)
 	if err != nil {
 		return models.BackupResult{}, err

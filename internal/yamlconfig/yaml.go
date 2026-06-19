@@ -19,17 +19,17 @@ func NewManager(svc *services.Services) *Manager {
 }
 
 func (m *Manager) Export(ctx context.Context) ([]byte, error) {
-	doc, err := m.svc.ExportConfig(ctx)
+	cfg, err := m.svc.ExportConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return yaml.Marshal(doc)
+	return yaml.Marshal(BuildDocument(cfg))
 }
 
-func (m *Manager) Parse(data []byte) (models.ConfigDocument, error) {
-	var doc models.ConfigDocument
+func (m *Manager) Parse(data []byte) (models.ConfigYAMLDocument, error) {
+	var doc models.ConfigYAMLDocument
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return models.ConfigDocument{}, fmt.Errorf("invalid yaml: %w", err)
+		return models.ConfigYAMLDocument{}, fmt.Errorf("invalid yaml: %w", err)
 	}
 	return doc, nil
 }
@@ -42,7 +42,7 @@ func (m *Manager) Validate(ctx context.Context, data []byte) (models.ValidationR
 	return m.validateDocument(ctx, doc)
 }
 
-func (m *Manager) validateDocument(ctx context.Context, doc models.ConfigDocument) (models.ValidationResult, error) {
+func (m *Manager) validateDocument(ctx context.Context, doc models.ConfigYAMLDocument) (models.ValidationResult, error) {
 	var result models.ValidationResult
 	result.Valid = true
 
@@ -123,18 +123,26 @@ func (m *Manager) Preview(ctx context.Context, data []byte) (models.ConfigPrevie
 	if err != nil {
 		return models.ConfigPreview{}, err
 	}
-	current, err := m.svc.ExportConfig(ctx)
+	currentCfg, err := m.svc.ExportConfig(ctx)
 	if err != nil {
 		return models.ConfigPreview{}, err
 	}
+	current := BuildDocument(currentCfg)
 
 	var preview models.ConfigPreview
-	preview.Changes = append(preview.Changes, diffResources("settings", len([]models.Settings{current.Settings}), len([]models.Settings{doc.Settings}))...)
-	preview.Changes = append(preview.Changes, diffList("nodes", current.Nodes, doc.Nodes, func(n models.Node) string { return n.Name })...)
-	preview.Changes = append(preview.Changes, diffList("credentials", current.Credentials, doc.Credentials, func(c models.Credential) string { return c.Name })...)
-	preview.Changes = append(preview.Changes, diffList("keys", current.Keys, doc.Keys, func(k models.SSHKey) string { return k.Name })...)
-	preview.Changes = append(preview.Changes, diffList("users", current.Users, doc.Users, func(u models.User) string { return u.Username })...)
+	preview.Changes = append(preview.Changes, diffResources("settings", boolToInt(current.Settings != nil), boolToInt(doc.Settings != nil))...)
+	preview.Changes = append(preview.Changes, diffList("nodes", current.Nodes, doc.Nodes, func(n models.NodeSpec) string { return n.Name })...)
+	preview.Changes = append(preview.Changes, diffList("credentials", current.Credentials, doc.Credentials, func(c models.CredentialSpec) string { return c.Name })...)
+	preview.Changes = append(preview.Changes, diffList("keys", current.Keys, doc.Keys, func(k models.KeySpec) string { return k.Name })...)
+	preview.Changes = append(preview.Changes, diffList("users", current.Users, doc.Users, func(u models.UserSpec) string { return u.Username })...)
 	return preview, nil
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 func diffResources(resource string, oldCount, newCount int) []models.ConfigChange {
@@ -184,5 +192,17 @@ func (m *Manager) Apply(ctx context.Context, data []byte) error {
 	if !result.Valid {
 		return fmt.Errorf("%w: %v", store.ErrConflict, result.Errors)
 	}
-	return m.svc.ApplyConfig(ctx, doc)
+	if doc.Settings == nil {
+		current, err := m.svc.ExportConfig(ctx)
+		if err != nil {
+			return err
+		}
+		settings := current.Settings
+		doc.Settings = &settings
+	}
+	cfg, err := ToConfigDocument(doc)
+	if err != nil {
+		return fmt.Errorf("%w: %v", store.ErrConflict, err)
+	}
+	return m.svc.ApplyConfig(ctx, cfg)
 }

@@ -142,22 +142,22 @@ type Upload struct {
 }
 
 type Settings struct {
-	SiteName            string           `json:"site_name"`
-	SessionTimeoutMin   int              `json:"session_timeout_min"`
-	MaxUploadSizeMB     int              `json:"max_upload_size_mb"`
-	RateLimitPerMinute  int              `json:"rate_limit_per_minute"`
-	RequireReauth       bool             `json:"require_reauth"`
-	AllowRegistration   bool             `json:"allow_registration"`
-	DefaultNodePort     int              `json:"default_node_port"`
-	BackupRetentionDays int              `json:"backup_retention_days"`
-	Protocols           ProtocolSettings `json:"protocols"`
+	SiteName            string           `json:"site_name" yaml:"site_name"`
+	SessionTimeoutMin   int              `json:"session_timeout_min" yaml:"session_timeout_min"`
+	MaxUploadSizeMB     int              `json:"max_upload_size_mb" yaml:"max_upload_size_mb"`
+	RateLimitPerMinute  int              `json:"rate_limit_per_minute" yaml:"rate_limit_per_minute"`
+	RequireReauth       bool             `json:"require_reauth" yaml:"require_reauth"`
+	AllowRegistration   bool             `json:"allow_registration" yaml:"allow_registration"`
+	DefaultNodePort     int              `json:"default_node_port" yaml:"default_node_port"`
+	BackupRetentionDays int              `json:"backup_retention_days" yaml:"backup_retention_days"`
+	Protocols           ProtocolSettings `json:"protocols" yaml:"protocols"`
 }
 
 // ProtocolSettings controls hub protocol services from the Web UI.
 type ProtocolSettings struct {
-	SFTPEnabled   bool `json:"sftp_enabled"`
-	WebDAVEnabled bool `json:"webdav_enabled"`
-	SMBEnabled    bool `json:"smb_enabled"`
+	SFTPEnabled   bool `json:"sftp_enabled" yaml:"sftp_enabled"`
+	WebDAVEnabled bool `json:"webdav_enabled" yaml:"webdav_enabled"`
+	SMBEnabled    bool `json:"smb_enabled" yaml:"smb_enabled"`
 }
 
 // DefaultProtocolSettings matches legacy always-on SFTP/WebDAV behavior.
@@ -191,13 +191,23 @@ type Dashboard struct {
 }
 
 type ConfigDocument struct {
-	Version     int                    `json:"version" yaml:"version"`
-	Settings    Settings               `json:"settings" yaml:"settings"`
-	Nodes       []Node                 `json:"nodes" yaml:"nodes"`
-	Credentials []Credential           `json:"credentials" yaml:"credentials"`
-	Keys        []SSHKey               `json:"keys" yaml:"keys"`
-	Users       []User                 `json:"users" yaml:"users"`
-	Extra       map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
+	Version     int                    `json:"version"`
+	Settings    Settings               `json:"settings"`
+	Nodes       []Node                 `json:"nodes"`
+	Credentials []Credential           `json:"credentials"`
+	Keys        []SSHKey               `json:"keys"`
+	Users       []User                 `json:"users"`
+	Extra       map[string]interface{} `json:"extra,omitempty"`
+}
+
+// ConfigYAMLDocument is a human-editable YAML export (no IDs, timestamps, or runtime state).
+type ConfigYAMLDocument struct {
+	Version     int              `yaml:"version"`
+	Settings    *Settings        `yaml:"settings,omitempty"`
+	Nodes       []NodeSpec       `yaml:"nodes,omitempty"`
+	Credentials []CredentialSpec `yaml:"credentials,omitempty"`
+	Keys        []KeySpec        `yaml:"keys,omitempty"`
+	Users       []UserSpec       `yaml:"users,omitempty"`
 }
 
 // NodesBackupDocument is a human-editable YAML backup containing only node definitions.
@@ -216,6 +226,29 @@ type NodeSpec struct {
 	Key        string            `yaml:"key,omitempty"`
 	Labels     map[string]string `yaml:"labels,omitempty"`
 	Enabled    *bool             `yaml:"enabled,omitempty"`
+}
+
+// CredentialSpec holds manually configurable credential fields (no IDs or secrets).
+type CredentialSpec struct {
+	Name     string `yaml:"name"`
+	Type     string `yaml:"type"`
+	Username string `yaml:"username,omitempty"`
+}
+
+// KeySpec holds manually configurable SSH key fields (no IDs or fingerprints).
+type KeySpec struct {
+	Name      string `yaml:"name"`
+	PublicKey string `yaml:"public_key"`
+	Comment   string `yaml:"comment,omitempty"`
+}
+
+// UserSpec holds manually configurable user fields (no IDs, passwords, or timestamps).
+type UserSpec struct {
+	Username    string `yaml:"username"`
+	DisplayName string `yaml:"display_name,omitempty"`
+	Email       string `yaml:"email,omitempty"`
+	Role        Role   `yaml:"role"`
+	Enabled     *bool  `yaml:"enabled,omitempty"`
 }
 
 type PingResult struct {
