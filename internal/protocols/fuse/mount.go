@@ -18,9 +18,10 @@ const DefaultMountPoint = "/mnt/lxcfh"
 
 // Config configures the FUSE mount.
 type Config struct {
-	MountPoint string
-	AllowOther bool
-	FSName     string
+	MountPoint  string
+	AllowOther  bool
+	FSName      string
+	DirectMount bool
 }
 
 // UIDMapper resolves Hub users to POSIX UID/GID.
@@ -109,9 +110,10 @@ func (m *Mounter) Mount(ctx context.Context) error {
 	}
 	opts := &fs.Options{
 		MountOptions: fuse.MountOptions{
-			AllowOther: m.cfg.AllowOther,
-			Name:       m.cfg.FSName,
-			FsName:     m.cfg.FSName,
+			AllowOther:  m.cfg.AllowOther,
+			Name:        m.cfg.FSName,
+			FsName:      m.cfg.FSName,
+			DirectMount: m.cfg.DirectMount,
 		},
 		UID: defUID,
 		GID: defGID,

@@ -181,9 +181,10 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 	if !m.fuseUp {
 		if m.fuse == nil {
 			m.fuse = fuseproto.NewMounter(fuseproto.Config{
-				MountPoint: mountPoint,
-				AllowOther: true,
-				FSName:     "lxcfh",
+				MountPoint:  mountPoint,
+				AllowOther:  true,
+				FSName:      "lxcfh",
+				DirectMount: true,
 			}, m.vfs, m.auth, nil, m.logger)
 		}
 		if err := m.fuse.Mount(context.Background()); err != nil {
@@ -212,6 +213,7 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 	m.nmbdCmd.Stdout = os.Stdout
 	m.nmbdCmd.Stderr = os.Stderr
 	if err := m.nmbdCmd.Start(); err != nil {
+		m.stopFuseLocked()
 		return fmt.Errorf("nmbd: %w", err)
 	}
 
@@ -221,6 +223,7 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 	if err := m.smbdCmd.Start(); err != nil {
 		_ = m.stopProcess(m.nmbdCmd)
 		m.nmbdCmd = nil
+		m.stopFuseLocked()
 		return fmt.Errorf("smbd: %w", err)
 	}
 
@@ -237,6 +240,10 @@ func (m *ProtocolManager) stopSMBLocked() {
 		_ = m.stopProcess(m.nmbdCmd)
 		m.nmbdCmd = nil
 	}
+	m.stopFuseLocked()
+}
+
+func (m *ProtocolManager) stopFuseLocked() {
 	if m.fuse != nil {
 		_ = m.fuse.Unmount()
 		m.fuseUp = false
