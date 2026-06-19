@@ -208,7 +208,7 @@ jobs:
           docker build -f Dockerfile.samba -t lxcfh/samba:ci .
 
       - name: Trivy hub image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.27.0
         with:
           image-ref: lxcfh/hub:ci
           format: table
@@ -216,7 +216,7 @@ jobs:
           exit-code: "1"
 
       - name: Trivy samba image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.27.0
         with:
           image-ref: lxcfh/samba:ci
           format: table

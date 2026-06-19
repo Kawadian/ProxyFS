@@ -33,7 +33,7 @@ services:
       - "${LXCFH_SFTP_PORT:-2022}:2022"
     volumes:
       - lxcfh-data:/var/lib/lxcfh
-      - lxcfh-fuse:/fuse-share:shared
+      - lxcfh-fuse:/fuse-share
       - ./secrets/dev/master.key:/run/secrets/master.key:ro
     devices:
       - /dev/fuse:/dev/fuse
@@ -69,7 +69,7 @@ services:
       - "${SMB_HOST_PORT:-445}:445"
       - "${SMB_NBT_PORT:-139}:139"
     volumes:
-      - lxcfh-fuse:/fuse-share:shared
+      - lxcfh-fuse:/fuse-share
     networks:
       - lxcfh
 
