@@ -1054,7 +1054,7 @@ paths:
   /config/preview:
     post:
       tags: [Config]
-      summary: Preview configuration changes
+      summary: Preview node changes from configuration YAML
       operationId: configPreview
       security:
         - sessionAuth: []
@@ -1075,7 +1075,8 @@ paths:
   /config/apply:
     post:
       tags: [Config]
-      summary: Apply configuration (full replacement)
+      summary: Apply nodes from configuration YAML
+      description: Syncs nodes by name (create, update, or delete). Users, keys, credentials, and settings are not changed.
       operationId: configApply
       security:
         - sessionAuth: []
