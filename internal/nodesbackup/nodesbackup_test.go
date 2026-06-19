@@ -21,6 +21,7 @@ func TestBuildDocumentOmitsIDs(t *testing.T) {
 		}},
 		[]models.Credential{{ID: "cred-id", Name: "main-cred"}},
 		nil,
+		22,
 	))
 	if err != nil {
 		t.Fatal(err)
@@ -28,6 +29,12 @@ func TestBuildDocumentOmitsIDs(t *testing.T) {
 	text := string(data)
 	if strings.Contains(text, "should-not-appear") || strings.Contains(text, "cred-id") || strings.Contains(text, "host_key") {
 		t.Fatalf("unexpected fields in export:\n%s", text)
+	}
+	if strings.Contains(text, "\n  enabled:") || strings.Contains(text, "\n    enabled:") {
+		t.Fatalf("enabled should be omitted when true:\n%s", text)
+	}
+	if strings.Contains(text, "port:") {
+		t.Fatalf("port should be omitted when default:\n%s", text)
 	}
 	if !strings.Contains(text, "main-cred") {
 		t.Fatalf("expected credential name in export:\n%s", text)
