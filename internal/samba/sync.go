@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/user"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -108,17 +110,21 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 		}
 		seen[u.Username] = struct{}{}
 		plain := plaintextPasswords[u.Username]
-		if plain == "" {
-			plain = deriveSambaPassword(u.PasswordHash, u.Username)
-		}
-		ntHash := ntHashLM(plain)
 		uid, gid := hub.UIDGID(u.ID)
+		if err := s.ensurePOSIXUser(ctx, u.Username, uid, gid); err != nil {
+			result.Errors = append(result.Errors, err.Error())
+			return result, err
+		}
 
-		var existing string
-		err := tx.QueryRowContext(ctx, `SELECT username FROM samba_accounts WHERE user_id = ?`, u.ID).Scan(&existing)
+		var existing, storedNTHash string
+		err := tx.QueryRowContext(ctx, `SELECT username, nt_hash FROM samba_accounts WHERE user_id = ?`, u.ID).Scan(&existing, &storedNTHash)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			if err := s.applySambaUser(ctx, u.Username, plain, true); err != nil {
+			if plain == "" {
+				plain = deriveSambaPassword(u.PasswordHash, u.Username)
+			}
+			ntHash := ntHashLM(plain)
+			if err := s.applySambaUser(ctx, u.Username, plain, ntHash, true); err != nil {
 				result.Errors = append(result.Errors, err.Error())
 				return result, err
 			}
@@ -130,14 +136,20 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 			); err != nil {
 				return result, fmt.Errorf("insert samba account %s: %w", u.Username, err)
 			}
-			s.logAction(ctx, u.Username, "create", "ok", "")
-			_ = s.clearPendingPassword(ctx, u.Username)
+			s.logAction(ctx, tx, u.Username, "create", "ok", "")
+			if err := s.clearPendingPassword(ctx, tx, u.Username); err != nil {
+				return result, err
+			}
 			result.Created++
 		default:
 			if err != nil {
 				return result, err
 			}
-			if err := s.applySambaUser(ctx, u.Username, plain, false); err != nil {
+			ntHash := storedNTHash
+			if plain != "" {
+				ntHash = ntHashLM(plain)
+			}
+			if err := s.applySambaUser(ctx, u.Username, plain, ntHash, false); err != nil {
 				result.Errors = append(result.Errors, err.Error())
 				return result, err
 			}
@@ -147,8 +159,10 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 			); err != nil {
 				return result, fmt.Errorf("update samba account %s: %w", u.Username, err)
 			}
-			s.logAction(ctx, u.Username, "update", "ok", "")
-			_ = s.clearPendingPassword(ctx, u.Username)
+			s.logAction(ctx, tx, u.Username, "update", "ok", "")
+			if err := s.clearPendingPassword(ctx, tx, u.Username); err != nil {
+				return result, err
+			}
 			result.Updated++
 		}
 	}
@@ -173,7 +187,7 @@ func (s *Syncer) SyncAll(ctx context.Context, plaintextPasswords map[string]stri
 		if _, err := tx.ExecContext(ctx, `DELETE FROM samba_accounts WHERE user_id = ?`, userID); err != nil {
 			return result, err
 		}
-		s.logAction(ctx, username, "delete", "ok", "")
+		s.logAction(ctx, tx, username, "delete", "ok", "")
 		result.Removed++
 	}
 
@@ -203,9 +217,68 @@ func (s *Syncer) loadPendingPasswords(ctx context.Context) (map[string]string, e
 	return out, rows.Err()
 }
 
-func (s *Syncer) clearPendingPassword(ctx context.Context, username string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM samba_pending_passwords WHERE username = ?`, username)
+func (s *Syncer) clearPendingPassword(ctx context.Context, tx *sql.Tx, username string) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM samba_pending_passwords WHERE username = ?`, username)
 	return err
+}
+
+func (s *Syncer) ensurePOSIXUser(ctx context.Context, username string, uid, gid uint32) error {
+	if username == "" || strings.ContainsAny(username, ":\n\r") {
+		return fmt.Errorf("invalid POSIX username %q", username)
+	}
+	if err := s.ensureSharedGroup(ctx); err != nil {
+		return err
+	}
+
+	if existing, err := user.Lookup(username); err == nil {
+		existingUID, uidErr := strconv.ParseUint(existing.Uid, 10, 32)
+		existingGID, gidErr := strconv.ParseUint(existing.Gid, 10, 32)
+		if uidErr != nil || gidErr != nil || uint32(existingUID) != uid || uint32(existingGID) != gid {
+			return fmt.Errorf("POSIX user %s exists with uid/gid %s:%s, expected %d:%d", username, existing.Uid, existing.Gid, uid, gid)
+		}
+		return s.ensureLXCFHMembership(ctx, username)
+	}
+
+	groupName := fmt.Sprintf("lxcfh-%d", gid)
+	if _, err := user.LookupGroupId(strconv.FormatUint(uint64(gid), 10)); err != nil {
+		cmd := exec.CommandContext(ctx, "groupadd", "--gid", strconv.FormatUint(uint64(gid), 10), groupName)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("groupadd %s: %w: %s", username, err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	cmd := exec.CommandContext(
+		ctx,
+		"useradd",
+		"--uid", strconv.FormatUint(uint64(uid), 10),
+		"--gid", strconv.FormatUint(uint64(gid), 10),
+		"--no-create-home",
+		"--shell", "/usr/sbin/nologin",
+		username,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("useradd %s: %w: %s", username, err, strings.TrimSpace(string(out)))
+	}
+	return s.ensureLXCFHMembership(ctx, username)
+}
+
+func (s *Syncer) ensureSharedGroup(ctx context.Context) error {
+	if _, err := user.LookupGroup("lxcfh"); err == nil {
+		return nil
+	}
+	cmd := exec.CommandContext(ctx, "groupadd", "--system", "lxcfh")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("create lxcfh group: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func (s *Syncer) ensureLXCFHMembership(ctx context.Context, username string) error {
+	cmd := exec.CommandContext(ctx, "usermod", "--append", "--groups", "lxcfh", username)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("add %s to lxcfh group: %w: %s", username, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func (s *Syncer) listUsers(ctx context.Context) ([]UserRecord, error) {
@@ -228,9 +301,33 @@ func (s *Syncer) listUsers(ctx context.Context) ([]UserRecord, error) {
 	return out, rows.Err()
 }
 
-func (s *Syncer) applySambaUser(ctx context.Context, username, password string, create bool) error {
+func (s *Syncer) applySambaUser(ctx context.Context, username, password, ntHash string, create bool) error {
 	if s.cfg.DryRun {
 		s.logger.Info("samba dry-run", "user", username, "create", create)
+		return nil
+	}
+	if !create {
+		exists, err := s.sambaUserExists(ctx, username)
+		if err != nil {
+			return err
+		}
+		create = !exists
+	}
+	if password == "" {
+		if create {
+			cmd := exec.CommandContext(ctx, s.cfg.PdbeditPath, "--create", "--user="+username, "--password-from-stdin")
+			cmd.Stdin = strings.NewReader(ntHash + "\n" + ntHash + "\n")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("pdbedit create %s: %w: %s", username, err, strings.TrimSpace(string(out)))
+			}
+		}
+		cmd := exec.CommandContext(ctx, s.cfg.PdbeditPath, "--modify", "--user="+username, "--set-nt-hash="+strings.ToUpper(ntHash))
+		if out, err := cmd.CombinedOutput(); err != nil {
+			if create {
+				_ = s.removeSambaUser(ctx, username)
+			}
+			return fmt.Errorf("pdbedit password restore %s: %w: %s", username, err, strings.TrimSpace(string(out)))
+		}
 		return nil
 	}
 	if create {
@@ -249,6 +346,18 @@ func (s *Syncer) applySambaUser(ctx context.Context, username, password string, 
 		return fmt.Errorf("smbpasswd update %s: %w", username, err)
 	}
 	return nil
+}
+
+func (s *Syncer) sambaUserExists(ctx context.Context, username string) (bool, error) {
+	cmd := exec.CommandContext(ctx, s.cfg.PdbeditPath, "-L", "-u", username)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return true, nil
+	}
+	if strings.Contains(string(out), "Username not found") {
+		return false, nil
+	}
+	return false, fmt.Errorf("pdbedit lookup %s: %w: %s", username, err, strings.TrimSpace(string(out)))
 }
 
 func (s *Syncer) removeSambaUser(ctx context.Context, username string) error {
@@ -277,8 +386,8 @@ func (s *Syncer) compensate(stack []compensation) {
 	}
 }
 
-func (s *Syncer) logAction(ctx context.Context, username, action, status, detail string) {
-	_, _ = s.db.ExecContext(ctx, `
+func (s *Syncer) logAction(ctx context.Context, tx *sql.Tx, username, action, status, detail string) {
+	_, _ = tx.ExecContext(ctx, `
 		INSERT INTO samba_sync_log (username, action, status, detail, created_at)
 		VALUES (?, ?, ?, ?, ?)`,
 		username, action, status, detail, time.Now().UTC().Format(time.RFC3339),

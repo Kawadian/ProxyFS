@@ -17,9 +17,6 @@
    smb encrypt = desired
    unix extensions = no
    wide links = no
-   fruit:metadata = stream
-   fruit:model = MacSamba
-   vfs objects = fruit streams_xattr
    log file = /var/log/samba/log.%m
    max log size = 50
    pid directory = /run/samba

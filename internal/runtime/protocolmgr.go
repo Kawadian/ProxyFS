@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/lxcfh/lxcfh/internal/auth"
 	"github.com/lxcfh/lxcfh/internal/config"
@@ -128,7 +132,7 @@ func (m *ProtocolManager) Status(settings models.Settings) models.ProtocolsOverv
 				Enabled: proto.WebDAVEnabled,
 				Running: m.webdav.IsEnabled(),
 				Port:    m.cfg.BindPort,
-				Path:    webdav.MountPath,
+				Path:    strings.TrimSuffix(webdav.MountPath, "/"),
 			},
 			{
 				Name:    "smb",
@@ -195,7 +199,8 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 
 	syncer := samba.NewSyncer(m.store.DB(), samba.Config{}, m.logger)
 	if _, err := syncer.SyncAll(ctx, nil); err != nil {
-		m.logger.Warn("samba user sync on start", "error", err)
+		m.stopFuseLocked()
+		return fmt.Errorf("samba user sync: %w", err)
 	}
 
 	if err := m.ensureSMBConfig(mountPoint); err != nil {
@@ -209,7 +214,7 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 		return err
 	}
 
-	m.nmbdCmd = exec.CommandContext(ctx, "nmbd", "--foreground", "--no-process-group")
+	m.nmbdCmd = exec.Command("nmbd", "--foreground", "--no-process-group")
 	m.nmbdCmd.Stdout = os.Stdout
 	m.nmbdCmd.Stderr = os.Stderr
 	if err := m.nmbdCmd.Start(); err != nil {
@@ -217,7 +222,7 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 		return fmt.Errorf("nmbd: %w", err)
 	}
 
-	m.smbdCmd = exec.CommandContext(ctx, "smbd", "--foreground", "--no-process-group")
+	m.smbdCmd = exec.Command("smbd", "--foreground", "--no-process-group")
 	m.smbdCmd.Stdout = os.Stdout
 	m.smbdCmd.Stderr = os.Stderr
 	if err := m.smbdCmd.Start(); err != nil {
@@ -226,9 +231,33 @@ func (m *ProtocolManager) startSMBLocked(ctx context.Context) error {
 		m.stopFuseLocked()
 		return fmt.Errorf("smbd: %w", err)
 	}
+	if err := waitForTCP("127.0.0.1:445", m.smbdCmd, 10*time.Second); err != nil {
+		m.stopSMBLocked()
+		return fmt.Errorf("smbd readiness: %w", err)
+	}
 
 	m.logger.Info("smb started", "share", mountPoint)
 	return nil
+}
+
+func waitForTCP(address string, cmd *exec.Cmd, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !processRunning(cmd) {
+			return fmt.Errorf("process exited before listening on %s", address)
+		}
+		conn, err := net.DialTimeout("tcp", address, 250*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			time.Sleep(500 * time.Millisecond)
+			if processRunning(cmd) {
+				return nil
+			}
+			return fmt.Errorf("process exited after opening %s", address)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("timeout waiting for %s", address)
 }
 
 func (m *ProtocolManager) stopSMBLocked() {
@@ -260,7 +289,30 @@ func (m *ProtocolManager) stopProcess(cmd *exec.Cmd) error {
 }
 
 func (m *ProtocolManager) smbRunningLocked() bool {
-	return m.smbdCmd != nil && m.smbdCmd.Process != nil
+	return processRunning(m.smbdCmd)
+}
+
+func processRunning(cmd *exec.Cmd) bool {
+	if cmd == nil || cmd.Process == nil || cmd.ProcessState != nil {
+		return false
+	}
+	return cmd.Process.Signal(syscall.Signal(0)) == nil
+}
+
+// SyncSMBUsers immediately applies Hub user changes to a running Samba service.
+func (m *ProtocolManager) SyncSMBUsers(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.smbRunningLocked() {
+		return nil
+	}
+	syncer := samba.NewSyncer(m.store.DB(), samba.Config{}, m.logger)
+	if _, err := syncer.SyncAll(ctx, nil); err != nil {
+		m.lastSMBErr = err.Error()
+		return fmt.Errorf("sync smb users: %w", err)
+	}
+	m.lastSMBErr = ""
+	return nil
 }
 
 func (m *ProtocolManager) fuseCapable() bool {
@@ -298,9 +350,6 @@ func (m *ProtocolManager) ensureSMBConfig(sharePath string) error {
    disable spoolss = yes
    server min protocol = SMB2
    client min protocol = SMB2
-   fruit:metadata = stream
-   fruit:model = MacSamba
-   vfs objects = fruit streams_xattr
    pid directory = /run/samba
    log file = /var/log/samba/log.%%m
    max log size = 50
@@ -311,6 +360,11 @@ func (m *ProtocolManager) ensureSMBConfig(sharePath string) error {
    browseable = yes
    read only = no
    guest ok = no
+   valid users = @lxcfh
+   force user = root
+   force group = lxcfh
+   create mask = 0664
+   directory mask = 0775
 `, shareName, sharePath)
 	return os.WriteFile(confPath, []byte(content), 0o644)
 }

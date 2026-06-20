@@ -7,7 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-chi/httprate v0.9.0
 	github.com/google/uuid v1.6.0
-	github.com/hanwen/go-fuse/v2 v2.5.1
+	github.com/hanwen/go-fuse/v2 v2.10.1
 	github.com/pkg/sftp v1.13.7
 	golang.org/x/crypto v0.45.0
 	gopkg.in/yaml.v3 v3.0.1

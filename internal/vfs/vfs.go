@@ -191,6 +191,15 @@ func (v *VirtualFS) Stat(ctx context.Context, virtualPath string) (FileInfo, err
 		}
 		return FileInfo{}, err
 	}
+	if clean == mount.Prefix {
+		return FileInfo{
+			Name:    filepath.Base(mount.Prefix),
+			Path:    mount.Prefix,
+			Mode:    os.ModeDir | 0o755,
+			ModTime: time.Now(),
+			IsDir:   true,
+		}, nil
+	}
 	info, err := mount.Backend.Stat(ctx, nodePath)
 	if err != nil {
 		return FileInfo{}, err

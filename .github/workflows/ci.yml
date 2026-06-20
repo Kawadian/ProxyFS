@@ -84,11 +84,14 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
 
-      - name: Install libfuse (FUSE CGO)
-        run: sudo apt-get update && sudo apt-get install -y libfuse3-dev
+      - name: Install protocol dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse3 libfuse3-dev samba smbclient
+          sudo chmod 666 /dev/fuse
 
       - name: Integration tests
-        run: CGO_ENABLED=1 go test ./test/integration/... -count=1 -tags=integration -timeout=5m
+        run: sudo --preserve-env=PATH env CGO_ENABLED=1 go test ./test/integration/... -count=1 -tags=integration -timeout=5m
 
   build:
     name: Build
