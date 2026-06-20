@@ -98,6 +98,7 @@ func newRuntimeApp(cfg *config.Config) (*runtimeApp, error) {
 	svc.OnSettingsChanged = func(ctx context.Context, settings models.Settings) error {
 		return protocolMgr.Apply(ctx, settings)
 	}
+	svc.OnSambaUsersChanged = protocolMgr.SyncSMBUsers
 
 	apiSrv := api.NewServer(svc, protocolMgr)
 
@@ -134,9 +135,9 @@ func (a *runtimeApp) handler() http.Handler {
 			apiHandler.ServeHTTP(w, r)
 		case strings.HasPrefix(r.URL.Path, "/api/"):
 			apiHandler.ServeHTTP(w, r)
-		case strings.HasPrefix(r.URL.Path, webdav.LegacyMountPath):
+		case r.URL.Path == strings.TrimSuffix(webdav.MountPath, "/"):
 			davHandler.ServeHTTP(w, r)
-		case webdav.IsWebDAVRequest(r):
+		case strings.HasPrefix(r.URL.Path, webdav.MountPath):
 			davHandler.ServeHTTP(w, r)
 		default:
 			static.ServeHTTP(w, r)

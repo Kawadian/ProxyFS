@@ -20,10 +20,7 @@ import (
 	"github.com/lxcfh/lxcfh/internal/vfs"
 )
 
-const MountPath = "/"
-
-// LegacyMountPath is kept for backward compatibility with older clients.
-const LegacyMountPath = "/dav/"
+const MountPath = "/dav/"
 
 // IsWebDAVRequest reports whether the HTTP request targets the WebDAV service.
 func IsWebDAVRequest(r *http.Request) bool {
@@ -40,13 +37,13 @@ func IsWebDAVRequest(r *http.Request) bool {
 	return false
 }
 
-// NormalizeRequestPath maps legacy /dav/ URLs to the virtual filesystem root.
+// NormalizeRequestPath maps the public /dav URL space to the virtual filesystem root.
 func NormalizeRequestPath(p string) string {
-	if p == LegacyMountPath || p == strings.TrimSuffix(LegacyMountPath, "/") {
+	if p == MountPath || p == strings.TrimSuffix(MountPath, "/") {
 		return "/"
 	}
-	if strings.HasPrefix(p, LegacyMountPath) {
-		rest := strings.TrimPrefix(p, strings.TrimSuffix(LegacyMountPath, "/"))
+	if strings.HasPrefix(p, MountPath) {
+		rest := strings.TrimPrefix(p, strings.TrimSuffix(MountPath, "/"))
 		if rest == "" {
 			return "/"
 		}
@@ -549,7 +546,7 @@ func destinationToPath(dest, prefix string) string {
 
 func (s *Server) publicPath(vfsPath string) string {
 	if vfsPath == "/" {
-		return "/"
+		return s.cfg.Prefix
 	}
 	prefix := strings.TrimSuffix(s.cfg.Prefix, "/")
 	if prefix == "" || prefix == "/" {

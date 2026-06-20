@@ -4,7 +4,6 @@ package integration_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -45,18 +44,15 @@ func startHub(t *testing.T) (baseURL string, sftpPort int, cleanup func()) {
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
-	bin := filepath.Join(repoRoot, "bin", "lxcfh")
-	if _, err := os.Stat(bin); err != nil {
-		build := exec.Command("go", "build", "-o", bin, "./cmd/lxcfh")
-		build.Dir = repoRoot
-		build.Env = append(os.Environ(), "CGO_ENABLED=1")
-		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("build hub: %v\n%s", err, out)
-		}
+	bin := filepath.Join(t.TempDir(), "lxcfh")
+	build := exec.Command("go", "build", "-o", bin, "./cmd/lxcfh")
+	build.Dir = repoRoot
+	build.Env = append(os.Environ(), "CGO_ENABLED=1")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build hub: %v\n%s", err, out)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, bin)
+	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(),
 		"LXCFH_DATA_DIR="+dataDir,
 		"LXCFH_DB_PATH="+dbPath,
@@ -69,7 +65,6 @@ func startHub(t *testing.T) (baseURL string, sftpPort int, cleanup func()) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		cancel()
 		t.Fatalf("start hub: %v", err)
 	}
 
@@ -77,9 +72,18 @@ func startHub(t *testing.T) (baseURL string, sftpPort int, cleanup func()) {
 	waitForHTTP(t, baseURL+"/health/live", 30*time.Second)
 
 	cleanup = func() {
-		cancel()
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
+		_ = cmd.Process.Signal(os.Interrupt)
+		done := make(chan struct{})
+		go func() {
+			_, _ = cmd.Process.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(15 * time.Second):
+			_ = cmd.Process.Kill()
+			<-done
+		}
 	}
 	return baseURL, sftpPort, cleanup
 }
@@ -172,8 +176,8 @@ func TestHubProtocolsConnectivity(t *testing.T) {
 		}
 	})
 
-	t.Run("WebDAVRoot", func(t *testing.T) {
-		req, err := http.NewRequest("PROPFIND", baseURL+"/", nil)
+	t.Run("WebDAV", func(t *testing.T) {
+		req, err := http.NewRequest("PROPFIND", baseURL+"/dav/", nil)
 		if err != nil {
 			t.Fatalf("request: %v", err)
 		}
@@ -189,52 +193,39 @@ func TestHubProtocolsConnectivity(t *testing.T) {
 			b, _ := io.ReadAll(res.Body)
 			t.Fatalf("status %d: %s", res.StatusCode, b)
 		}
+		body, _ := io.ReadAll(res.Body)
+		if !strings.Contains(string(body), "<href>/dav/</href>") {
+			t.Fatalf("WebDAV root href is not /dav/: %s", body)
+		}
 	})
 
-	t.Run("WebDAVLegacyPath", func(t *testing.T) {
-		req, err := http.NewRequest("PROPFIND", baseURL+"/dav/", nil)
+	t.Run("WebDAVDoesNotReplaceWebUIRoot", func(t *testing.T) {
+		req, err := http.NewRequest("PROPFIND", baseURL+"/", nil)
 		if err != nil {
 			t.Fatalf("request: %v", err)
 		}
 		req.SetBasicAuth(username, password)
-		req.Header.Set("Depth", "0")
+		req.Header.Set("Depth", "1")
 
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("propfind: %v", err)
 		}
 		defer res.Body.Close()
-		if res.StatusCode != http.StatusMultiStatus {
-			b, _ := io.ReadAll(res.Body)
-			t.Fatalf("status %d: %s", res.StatusCode, b)
+		if res.StatusCode == http.StatusMultiStatus {
+			t.Fatal("web UI root must not be served as WebDAV")
 		}
 	})
 
 	t.Run("SMB", func(t *testing.T) {
 		if _, err := exec.LookPath("smbd"); err != nil {
-			t.Skip("smbd not installed")
+			t.Fatal("smbd is required for the protocol integration test")
 		}
 		if _, err := os.Stat("/dev/fuse"); err != nil {
-			t.Skip("FUSE unavailable")
+			t.Fatal("/dev/fuse is required for the protocol integration test")
 		}
 
-		req, err := http.NewRequest(http.MethodPatch, baseURL+"/api/v1/protocols/smb", strings.NewReader(`{"enabled":true}`))
-		if err != nil {
-			t.Fatalf("request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-CSRF-Token", csrf)
-		req.AddCookie(&http.Cookie{Name: "lxcfh_session", Value: cookie})
-
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatalf("enable smb: %v", err)
-		}
-		defer res.Body.Close()
-		body, _ := io.ReadAll(res.Body)
-		if res.StatusCode != http.StatusOK {
-			t.Fatalf("enable smb status %d: %s", res.StatusCode, body)
-		}
+		setSMBEnabled(t, baseURL, csrf, cookie, true)
 
 		deadline := time.Now().Add(20 * time.Second)
 		for time.Now().Before(deadline) {
@@ -268,16 +259,73 @@ func TestHubProtocolsConnectivity(t *testing.T) {
 
 	smbReady:
 		if _, err := exec.LookPath("smbclient"); err != nil {
-			t.Skip("smbclient not installed")
+			t.Fatal("smbclient is required for the protocol integration test")
 		}
 		share := os.Getenv("SMB_SHARE_NAME")
 		if share == "" {
 			share = "lxcfh"
 		}
-		cmd := exec.Command("smbclient", "//127.0.0.1/"+share, "-U", username+"%"+password, "-c", "ls")
-		out, err := cmd.CombinedOutput()
+		out, err := runCommandWithRetry(10*time.Second, "smbclient", "//127.0.0.1/"+share, "-U", username+"%"+password, "-c", "ls")
 		if err != nil {
 			t.Fatalf("smbclient: %v\n%s", err, out)
 		}
+
+		listOut, err := runCommandWithRetry(10*time.Second, "smbclient", "-L", "//127.0.0.1", "-U", username+"%"+password)
+		if err != nil {
+			t.Fatalf("smbclient server browse: %v\n%s", err, listOut)
+		}
+		if !strings.Contains(string(listOut), share) {
+			t.Fatalf("server browse did not expose %q:\n%s", share, listOut)
+		}
+
+		if out, err := exec.Command("pdbedit", "-x", username).CombinedOutput(); err != nil {
+			t.Fatalf("remove Samba passdb user: %v\n%s", err, out)
+		}
+		setSMBEnabled(t, baseURL, csrf, cookie, false)
+		setSMBEnabled(t, baseURL, csrf, cookie, true)
+		out, err = runCommandWithRetry(10*time.Second, "smbclient", "//127.0.0.1/"+share, "-U", username+"%"+password, "-c", "ls")
+		if err != nil {
+			t.Fatalf("smbclient after passdb restore: %v\n%s", err, out)
+		}
 	})
+}
+
+func setSMBEnabled(t *testing.T, baseURL, csrf, cookie string, enabled bool) {
+	t.Helper()
+	req, err := http.NewRequest(
+		http.MethodPatch,
+		baseURL+"/api/v1/protocols/smb",
+		strings.NewReader(fmt.Sprintf(`{"enabled":%t}`, enabled)),
+	)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", csrf)
+	req.AddCookie(&http.Cookie{Name: "lxcfh_session", Value: cookie})
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("set smb enabled=%t: %v", enabled, err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("set smb enabled=%t status %d: %s", enabled, res.StatusCode, body)
+	}
+}
+
+func runCommandWithRetry(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	deadline := time.Now().Add(timeout)
+	var out []byte
+	var err error
+	for time.Now().Before(deadline) {
+		cmd := exec.Command(name, args...)
+		out, err = cmd.CombinedOutput()
+		if err == nil {
+			return out, nil
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return out, err
 }

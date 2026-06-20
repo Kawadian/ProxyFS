@@ -32,6 +32,25 @@ func TestReadDirRootWithoutMounts(t *testing.T) {
 	}
 }
 
+func TestStatMountPointDoesNotStatBackendRoot(t *testing.T) {
+	v := New("/", 0, 0)
+	if err := v.AddMount(Mount{
+		Name:    "192.168.1.100",
+		Prefix:  "/192.168.1.100",
+		Backend: &LocalBackend{Root: t.TempDir()},
+	}); err != nil {
+		t.Fatalf("AddMount: %v", err)
+	}
+
+	info, err := v.Stat(context.Background(), "/192.168.1.100")
+	if err != nil {
+		t.Fatalf("Stat mount point: %v", err)
+	}
+	if info.Name != "192.168.1.100" || info.Path != "/192.168.1.100" || !info.IsDir {
+		t.Fatalf("unexpected mount metadata: %+v", info)
+	}
+}
+
 func TestStatMissingPath(t *testing.T) {
 	v := New("/", 0, 0)
 	_, err := v.Stat(context.Background(), "/missing")

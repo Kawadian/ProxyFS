@@ -2,6 +2,7 @@ package fuse
 
 import (
 	"context"
+	"hash/fnv"
 	"io"
 	"syscall"
 
@@ -170,11 +171,23 @@ func fillAttr(out *fuse.Attr, info vfs.FileInfo, uidMap UIDMapper) {
 	}
 	mode := uint32(info.Mode.Perm())
 	if info.IsDir {
+		if mode == 0 {
+			mode = 0o755
+		}
 		mode |= fuse.S_IFDIR
 	} else {
+		if mode == 0 {
+			mode = 0o644
+		}
 		mode |= fuse.S_IFREG
 	}
 	out.Mode = mode
+	out.Ino = inodeForPath(info.Path)
+	if info.IsDir {
+		out.Nlink = 2
+	} else {
+		out.Nlink = 1
+	}
 	out.Size = uint64(info.Size)
 	out.Mtime = uint64(info.ModTime.Unix())
 	out.Mtimensec = uint32(info.ModTime.Nanosecond())
@@ -182,6 +195,19 @@ func fillAttr(out *fuse.Attr, info vfs.FileInfo, uidMap UIDMapper) {
 	out.Gid = gid
 	out.Atime = out.Mtime
 	out.Ctime = out.Mtime
+}
+
+func inodeForPath(path string) uint64 {
+	if path == "" || path == "/" {
+		return 1
+	}
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(path))
+	ino := h.Sum64()
+	if ino < 2 {
+		return ino + 2
+	}
+	return ino
 }
 
 // VNode represents a virtual filesystem node below root.

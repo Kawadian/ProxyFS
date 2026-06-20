@@ -38,3 +38,13 @@ func TestNormalizeRequestPath(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicPathUsesDAVPrefix(t *testing.T) {
+	s := &Server{cfg: Config{Prefix: MountPath}}
+	if got := s.publicPath("/"); got != "/dav/" {
+		t.Fatalf("root: got %q want /dav/", got)
+	}
+	if got := s.publicPath("/192.168.1.100"); got != "/dav/192.168.1.100" {
+		t.Fatalf("node: got %q", got)
+	}
+}

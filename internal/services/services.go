@@ -34,14 +34,15 @@ var (
 )
 
 type Services struct {
-	Store             *store.Store
-	BackupDir         string
-	DataDir           string
-	VFS               *vfs.VirtualFS
-	VFSManager        *hub.VFSManager
-	MasterKey         []byte
-	OnNodesChanged    func(ctx context.Context)
-	OnSettingsChanged func(ctx context.Context, settings models.Settings) error
+	Store               *store.Store
+	BackupDir           string
+	DataDir             string
+	VFS                 *vfs.VirtualFS
+	VFSManager          *hub.VFSManager
+	MasterKey           []byte
+	OnNodesChanged      func(ctx context.Context)
+	OnSettingsChanged   func(ctx context.Context, settings models.Settings) error
+	OnSambaUsersChanged func(ctx context.Context) error
 }
 
 func New(st *store.Store, dataDir string) *Services {
@@ -232,7 +233,13 @@ func (s *Services) requestSambaSync(ctx context.Context, username, password stri
 	if !settings.Protocols.SMBEnabled {
 		return nil
 	}
-	return s.Store.BumpSambaSyncNonce(ctx)
+	if err := s.Store.BumpSambaSyncNonce(ctx); err != nil {
+		return err
+	}
+	if s.OnSambaUsersChanged != nil {
+		return s.OnSambaUsersChanged(ctx)
+	}
+	return nil
 }
 
 func (s *Services) ListUserSSHKeys(ctx context.Context, userID string) ([]models.UserSSHKey, error) {
